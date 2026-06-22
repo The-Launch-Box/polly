@@ -1,0 +1,117 @@
+name: Build & Deploy to Azure Container Apps
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  IMAGE_NAME: typeform-alt
+  RESOURCE_GROUP: rg-typeform-alt
+  CONTAINER_APP: typeform-alt
+  MIGRATE_JOB: typeform-alt-migrate
+
+jobs:
+  build-and-push:
+    name: Build Docker image & push to ACR
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tag }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Log in to Azure Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Set image tag
+        id: meta
+        run: echo "tag=${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.tag }}
+            ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  migrate:
+    name: Run Prisma migrations
+    runs-on: ubuntu-latest
+    needs: build-and-push
+
+    steps:
+      - name: Log in to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # Update the migrate job image to the new SHA before running
+      - name: Update migrate job image
+        run: |
+          az containerapp job update \
+            --name "${{ env.MIGRATE_JOB }}" \
+            --resource-group "${{ env.RESOURCE_GROUP }}" \
+            --image "${{ needs.build-and-push.outputs.image-tag }}"
+
+      - name: Start migrate job and wait
+        run: |
+          EXECUTION_NAME=$(az containerapp job start \
+            --name "${{ env.MIGRATE_JOB }}" \
+            --resource-group "${{ env.RESOURCE_GROUP }}" \
+            --query name -o tsv)
+
+          echo "Waiting for migration job: $EXECUTION_NAME"
+          for i in $(seq 1 30); do
+            STATUS=$(az containerapp job execution show \
+              --name "${{ env.MIGRATE_JOB }}" \
+              --resource-group "${{ env.RESOURCE_GROUP }}" \
+              --job-execution-name "$EXECUTION_NAME" \
+              --query properties.status -o tsv)
+            echo "  Status: $STATUS"
+            if [[ "$STATUS" == "Succeeded" ]]; then exit 0; fi
+            if [[ "$STATUS" == "Failed" ]]; then echo "Migration failed"; exit 1; fi
+            sleep 10
+          done
+          echo "Timed out waiting for migration job"
+          exit 1
+
+  deploy:
+    name: Deploy to Container Apps
+    runs-on: ubuntu-latest
+    needs: [build-and-push, migrate]
+
+    steps:
+      - name: Log in to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy new revision
+        run: |
+          az containerapp update \
+            --name "${{ env.CONTAINER_APP }}" \
+            --resource-group "${{ env.RESOURCE_GROUP }}" \
+            --image "${{ needs.build-and-push.outputs.image-tag }}"
+
+      - name: Get app URL
+        run: |
+          FQDN=$(az containerapp show \
+            --name "${{ env.CONTAINER_APP }}" \
+            --resource-group "${{ env.RESOURCE_GROUP }}" \
+            --query properties.configuration.ingress.fqdn -o tsv)
+          echo "Deployed: https://$FQDN"
+          echo "Demo quiz: https://$FQDN/q/claude-comfort"

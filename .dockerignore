@@ -1,0 +1,22 @@
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+
+node_modules
+npm-debug.log*
+
+.next
+.vercel
+
+# Local dev only
+docker-compose.yml
+docker-compose.override.yml
+
+# Infra / CI — not needed in image
+infra/
+.github/
+
+README.md
+*.md
