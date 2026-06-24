@@ -24,7 +24,7 @@ export default async function AdminSubmissionsPage() {
   });
 
   return (
-    <main className="min-h-screen bg-zinc-50">
+    <>
       <header className="border-b border-zinc-200 bg-white">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
           <div>
@@ -90,6 +90,6 @@ export default async function AdminSubmissionsPage() {
           ))
         )}
       </div>
-    </main>
+    </>
   );
 }

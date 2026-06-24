@@ -1,6 +1,17 @@
 import Link from "next/link";
+import { prisma } from "@/lib/prisma";
 
-export default function HomePage() {
+export const dynamic = "force-dynamic";
+
+export default async function HomePage() {
+  const forms = await prisma.form.findMany({
+    orderBy: { createdAt: "desc" },
+    select: {
+      slug: true,
+      title: true,
+    },
+  });
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-zinc-50 px-4">
       <div className="w-full max-w-lg rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
@@ -15,18 +26,27 @@ export default function HomePage() {
         </p>
 
         <div className="mt-8 space-y-3">
+          {forms.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-zinc-300 px-4 py-3 text-sm text-zinc-500">
+              No surveys published yet.
+            </p>
+          ) : (
+            forms.map((form) => (
+              <Link
+                key={form.slug}
+                href={`/q/${form.slug}`}
+                className="flex items-center justify-between rounded-xl border border-zinc-300 px-4 py-3 text-sm font-medium text-zinc-900 transition hover:border-zinc-900 hover:bg-zinc-50"
+              >
+                <span>{form.title}</span>
+                <span aria-hidden>→</span>
+              </Link>
+            ))
+          )}
           <Link
-            href="/q/claude-comfort"
-            className="flex items-center justify-between rounded-xl border border-zinc-300 px-4 py-3 text-sm font-medium text-zinc-900 transition hover:border-zinc-900 hover:bg-zinc-50"
-          >
-            <span>How comfortable with Claude are you?</span>
-            <span aria-hidden>→</span>
-          </Link>
-          <Link
-            href="/admin/submissions"
+            href="/admin/forms"
             className="flex items-center justify-between rounded-xl border border-zinc-200 px-4 py-3 text-sm text-zinc-600 transition hover:border-zinc-400 hover:bg-zinc-50"
           >
-            <span>View submissions (admin)</span>
+            <span>Admin — create & manage surveys</span>
             <span aria-hidden>→</span>
           </Link>
         </div>

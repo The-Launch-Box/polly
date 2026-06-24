@@ -36,6 +36,23 @@ param postgresAdminPassword string
 @description('Container image to deploy (e.g. myacr.azurecr.io/typeform-alt:latest)')
 param containerImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 
+@secure()
+@description('Auth.js signing secret (openssl rand -hex 32)')
+param authSecret string
+
+@description('Microsoft Entra application (client) ID')
+param authMicrosoftEntraIdId string
+
+@secure()
+@description('Microsoft Entra client secret')
+param authMicrosoftEntraIdSecret string
+
+@description('Microsoft Entra issuer URL')
+param authMicrosoftEntraIdIssuer string
+
+@description('Object ID of the principal running this deployment (for Key Vault secret writes)')
+param deployerPrincipalId string = ''
+
 var resourcePrefix = 'typeform-alt-${environmentName}'
 var vnetName = 'vnet-${resourcePrefix}'
 var acrName = replace('acr${resourcePrefix}', '-', '')
@@ -44,6 +61,11 @@ var kvName = 'kv-${resourcePrefix}'
 var acaEnvName = 'cae-${resourcePrefix}'
 var acaAppName = 'typeform-alt'
 var acaJobName = 'typeform-alt-migrate'
+var kvUri = 'https://${kvName}${environment().suffixes.keyvaultDns}/'
+var databaseConnectionString = 'postgresql://${postgresAdminLogin}:${postgresAdminPassword}@${postgres.properties.fullyQualifiedDomainName}:5432/typeform?schema=public&sslmode=require'
+var acrCredentials = acr.listCredentials()
+var containerAppFqdn = '${acaAppName}.${acaEnv.properties.defaultDomain}'
+var authUrl = 'https://${containerAppFqdn}'
 
 // ── Virtual Network ────────────────────────────────────────────────────────────
 resource vnet 'Microsoft.Network/virtualNetworks@2023-09-01' = {
@@ -221,6 +243,58 @@ resource kvDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups
   }
 }
 
+// ── Key Vault secrets (created during deploy) ───────────────────────────────────
+resource secretDatabaseUrl 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'database-url'
+  properties: {
+    value: databaseConnectionString
+  }
+  dependsOn: empty(deployerPrincipalId) ? [] : [deployerKvSecretsOfficer]
+}
+
+resource secretAuthSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'auth-secret'
+  properties: {
+    value: authSecret
+  }
+}
+
+resource secretAuthMicrosoftEntraIdId 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'auth-microsoft-entra-id-id'
+  properties: {
+    value: authMicrosoftEntraIdId
+  }
+}
+
+resource secretAuthMicrosoftEntraIdSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'auth-microsoft-entra-id-secret'
+  properties: {
+    value: authMicrosoftEntraIdSecret
+  }
+}
+
+resource secretAuthMicrosoftEntraIdIssuer 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'auth-microsoft-entra-id-issuer'
+  properties: {
+    value: authMicrosoftEntraIdIssuer
+  }
+}
+
+resource deployerKvSecretsOfficer 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(deployerPrincipalId)) {
+  name: guid(keyVault.id, deployerPrincipalId, 'b86a8fe2-44ce-4948-aee5-eccb2c155cd7')
+  scope: keyVault
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b86a8fe2-44ce-4948-aee5-eccb2c155cd7')
+    principalId: deployerPrincipalId
+    principalType: 'User'
+  }
+}
+
 // ── Container Apps Environment ─────────────────────────────────────────────────
 resource acaEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: acaEnvName
@@ -266,15 +340,31 @@ resource acaApp 'Microsoft.App/containerApps@2024-03-01' = {
       secrets: [
         {
           name: 'acr-password'
-          // Replace with Key Vault reference after first deploy:
-          // keyVaultUrl: 'https://${kvName}.vault.azure.net/secrets/acr-password'
-          // identity: 'system'
-          value: 'REPLACE_WITH_ACR_PASSWORD_OR_USE_MANAGED_IDENTITY'
+          value: acrCredentials.passwords[0].value
         }
         {
           name: 'database-url'
-          // Reference from Key Vault (set after kv secret is created)
-          keyVaultUrl: 'https://${kvName}.vault.azure.net/secrets/database-url'
+          keyVaultUrl: '${kvUri}secrets/database-url'
+          identity: 'system'
+        }
+        {
+          name: 'auth-secret'
+          keyVaultUrl: '${kvUri}secrets/auth-secret'
+          identity: 'system'
+        }
+        {
+          name: 'auth-microsoft-entra-id-id'
+          keyVaultUrl: '${kvUri}secrets/auth-microsoft-entra-id-id'
+          identity: 'system'
+        }
+        {
+          name: 'auth-microsoft-entra-id-secret'
+          keyVaultUrl: '${kvUri}secrets/auth-microsoft-entra-id-secret'
+          identity: 'system'
+        }
+        {
+          name: 'auth-microsoft-entra-id-issuer'
+          keyVaultUrl: '${kvUri}secrets/auth-microsoft-entra-id-issuer'
           identity: 'system'
         }
       ]
@@ -296,6 +386,26 @@ resource acaApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'NODE_ENV'
               value: 'production'
+            }
+            {
+              name: 'AUTH_SECRET'
+              secretRef: 'auth-secret'
+            }
+            {
+              name: 'AUTH_URL'
+              value: authUrl
+            }
+            {
+              name: 'AUTH_MICROSOFT_ENTRA_ID_ID'
+              secretRef: 'auth-microsoft-entra-id-id'
+            }
+            {
+              name: 'AUTH_MICROSOFT_ENTRA_ID_SECRET'
+              secretRef: 'auth-microsoft-entra-id-secret'
+            }
+            {
+              name: 'AUTH_MICROSOFT_ENTRA_ID_ISSUER'
+              secretRef: 'auth-microsoft-entra-id-issuer'
             }
           ]
         }
@@ -384,7 +494,7 @@ resource kvRoleAssignmentJob 'Microsoft.Authorization/roleAssignments@2022-04-01
 }
 
 // ── Outputs ────────────────────────────────────────────────────────────────────
-output containerAppFqdn string = acaApp.properties.configuration.ingress.fqdn
+output containerAppFqdn string = containerAppFqdn
 output containerRegistryLoginServer string = acr.properties.loginServer
 output keyVaultName string = keyVault.name
 output postgresHostname string = postgres.properties.fullyQualifiedDomainName

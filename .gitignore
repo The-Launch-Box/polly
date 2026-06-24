@@ -24,6 +24,12 @@
 .DS_Store
 *.pem
 .pgdata
+.azure/
+
+# Local Azure CLI venv (scripts/azure-bootstrap.sh)
+.azure/venv/
+.azure/azure-credentials.json
+.azure/bootstrap.env
 
 # debug
 npm-debug.log*
