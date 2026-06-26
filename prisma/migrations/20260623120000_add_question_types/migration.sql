@@ -1,0 +1,4 @@
+-- AlterEnum
+ALTER TYPE "QuestionType" ADD VALUE 'MULTIPLE_CHOICE';
+ALTER TYPE "QuestionType" ADD VALUE 'SLIDER';
+ALTER TYPE "QuestionType" ADD VALUE 'HEATMAP';

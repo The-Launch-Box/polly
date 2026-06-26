@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { FormPayload } from "@/lib/types";
+import { isHeatmapPoint } from "@/lib/types";
 import { ProgressBar } from "@/components/ProgressBar";
 import { QuestionStep } from "@/components/QuestionStep";
 
@@ -42,14 +43,31 @@ export function FormPlayer({ form }: FormPlayerProps) {
       return null;
     }
     const value = answers[currentQuestion.id];
+    if (!currentQuestion.required) {
+      return null;
+    }
     if (
-      currentQuestion.required &&
-      (value === undefined ||
-        value === null ||
-        value === "" ||
-        (typeof value === "string" && !value.trim()))
+      value === undefined ||
+      value === null ||
+      value === "" ||
+      (typeof value === "string" && !value.trim())
     ) {
       return "Please answer this question before continuing.";
+    }
+    if (Array.isArray(value) && value.length === 0) {
+      return "Please answer this question before continuing.";
+    }
+    if (currentQuestion.type === "HEATMAP" && !isHeatmapPoint(value)) {
+      if (
+        !Array.isArray(value) ||
+        value.length === 0 ||
+        !value.every(isHeatmapPoint)
+      ) {
+        return "Please click on the image before continuing.";
+      }
+    }
+    if (currentQuestion.type === "MULTIPLE_CHOICE" && Array.isArray(value) && value.length === 0) {
+      return "Please select at least one option before continuing.";
     }
     return null;
   }

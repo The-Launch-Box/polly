@@ -21,7 +21,10 @@ model Form {
 enum QuestionType {
   SCALE
   SINGLE_CHOICE
+  MULTIPLE_CHOICE
   SHORT_TEXT
+  SLIDER
+  HEATMAP
 }
 
 model Question {

@@ -1,16 +1,32 @@
 import { NextResponse } from "next/server";
 import { QuestionType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import type { AnswerInput, QuestionOptions } from "@/lib/types";
+import type { AnswerInput, MultipleChoiceOptions, QuestionOptions } from "@/lib/types";
 import {
+  isChoiceListOptions,
+  isHeatmapOptions,
+  isHeatmapPoint,
   isScaleOptions,
   isShortTextOptions,
-  isSingleChoiceOptions,
+  isSliderOptions,
 } from "@/lib/types";
 
 type SubmitBody = {
   answers: AnswerInput[];
 };
+
+function isEmptyAnswer(value: unknown): boolean {
+  if (value === null || value === undefined || value === "") {
+    return true;
+  }
+  if (Array.isArray(value) && value.length === 0) {
+    return true;
+  }
+  if (typeof value === "string" && !value.trim()) {
+    return true;
+  }
+  return false;
+}
 
 function validateAnswer(
   type: QuestionType,
@@ -18,7 +34,7 @@ function validateAnswer(
   value: unknown,
   required: boolean,
 ): string | null {
-  if (value === null || value === undefined || value === "") {
+  if (isEmptyAnswer(value)) {
     return required ? "This question is required." : null;
   }
 
@@ -35,15 +51,54 @@ function validateAnswer(
       }
       return null;
     }
+    case QuestionType.SLIDER: {
+      if (typeof value !== "number" || Number.isNaN(value)) {
+        return "Slider answers must be a number.";
+      }
+      if (!isSliderOptions(options)) {
+        return "Invalid slider configuration.";
+      }
+      if (value < options.min || value > options.max) {
+        return `Value must be between ${options.min} and ${options.max}.`;
+      }
+      return null;
+    }
     case QuestionType.SINGLE_CHOICE: {
       if (typeof value !== "string") {
         return "Choice answers must be a string value.";
       }
-      if (!isSingleChoiceOptions(options)) {
+      if (!isChoiceListOptions(options)) {
         return "Invalid choice configuration.";
       }
       const valid = options.choices.some((choice) => choice.value === value);
       return valid ? null : "Invalid choice selected.";
+    }
+    case QuestionType.MULTIPLE_CHOICE: {
+      if (!Array.isArray(value) || !value.every((item) => typeof item === "string")) {
+        return "Multiple choice answers must be an array of choice values.";
+      }
+      if (!isChoiceListOptions(options)) {
+        return "Invalid choice configuration.";
+      }
+      const multi = options as MultipleChoiceOptions;
+      const min = multi.minSelections ?? 1;
+      const max = multi.maxSelections ?? options.choices.length;
+      if (value.length < min) {
+        return `Select at least ${min} option${min === 1 ? "" : "s"}.`;
+      }
+      if (value.length > max) {
+        return `Select at most ${max} option${max === 1 ? "" : "s"}.`;
+      }
+      const unique = new Set(value);
+      if (unique.size !== value.length) {
+        return "Duplicate choices are not allowed.";
+      }
+      for (const selected of value) {
+        if (!options.choices.some((choice) => choice.value === selected)) {
+          return "Invalid choice selected.";
+        }
+      }
+      return null;
     }
     case QuestionType.SHORT_TEXT: {
       if (typeof value !== "string") {
@@ -58,9 +113,41 @@ function validateAnswer(
       }
       return null;
     }
+    case QuestionType.HEATMAP: {
+      if (!isHeatmapOptions(options)) {
+        return "Invalid heatmap configuration.";
+      }
+      const maxClicks = options.maxClicks ?? 1;
+      if (maxClicks === 1) {
+        if (!isHeatmapPoint(value)) {
+          return "Heatmap answers must be a click position.";
+        }
+        return validateHeatmapPoint(value);
+      }
+      if (!Array.isArray(value) || !value.every(isHeatmapPoint)) {
+        return "Heatmap answers must be click positions.";
+      }
+      if (value.length > maxClicks) {
+        return `At most ${maxClicks} click${maxClicks === 1 ? "" : "s"} allowed.`;
+      }
+      for (const point of value) {
+        const error = validateHeatmapPoint(point);
+        if (error) {
+          return error;
+        }
+      }
+      return null;
+    }
     default:
       return "Unsupported question type.";
   }
+}
+
+function validateHeatmapPoint(point: { x: number; y: number }): string | null {
+  if (point.x < 0 || point.x > 100 || point.y < 0 || point.y > 100) {
+    return "Heatmap coordinates must be between 0 and 100.";
+  }
+  return null;
 }
 
 export async function POST(
@@ -129,12 +216,7 @@ export async function POST(
     const answerRows = form.questions
       .map((question) => {
         const rawValue = answersByQuestion.get(question.id);
-        if (
-          rawValue === null ||
-          rawValue === undefined ||
-          rawValue === "" ||
-          (typeof rawValue === "string" && !rawValue.trim() && !question.required)
-        ) {
+        if (isEmptyAnswer(rawValue)) {
           return null;
         }
 
@@ -142,14 +224,37 @@ export async function POST(
         if (question.type === QuestionType.SHORT_TEXT && typeof rawValue === "string") {
           storedValue = rawValue.trim();
         }
-        if (question.type === QuestionType.SINGLE_CHOICE && typeof rawValue === "string") {
-          const choiceOptions = question.options as {
-            choices?: { value: string; label: string }[];
-          } | null;
-          const match = choiceOptions?.choices?.find(
-            (choice) => choice.value === rawValue,
-          );
-          storedValue = match ?? rawValue;
+        if (
+          question.type === QuestionType.SINGLE_CHOICE &&
+          typeof rawValue === "string"
+        ) {
+          const choiceOptions = question.options as QuestionOptions | null;
+          if (isChoiceListOptions(choiceOptions)) {
+            const match = choiceOptions.choices.find(
+              (choice) => choice.value === rawValue,
+            );
+            storedValue = match ?? rawValue;
+          }
+        }
+        if (
+          question.type === QuestionType.MULTIPLE_CHOICE &&
+          Array.isArray(rawValue)
+        ) {
+          const choiceOptions = question.options as QuestionOptions | null;
+          if (isChoiceListOptions(choiceOptions)) {
+            storedValue = rawValue.map((selected) => {
+              const match = choiceOptions.choices.find(
+                (choice) => choice.value === selected,
+              );
+              return match ?? selected;
+            });
+          }
+        }
+        if (question.type === QuestionType.HEATMAP && isHeatmapPoint(rawValue)) {
+          storedValue = {
+            x: Math.round(rawValue.x * 10) / 10,
+            y: Math.round(rawValue.y * 10) / 10,
+          };
         }
 
         return {

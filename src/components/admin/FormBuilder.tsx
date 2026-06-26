@@ -13,7 +13,10 @@ import type {
   QuestionOptions,
   ScaleOptions,
   SingleChoiceOptions,
+  MultipleChoiceOptions,
   ShortTextOptions,
+  SliderOptions,
+  HeatmapOptions,
 } from "@/lib/types";
 
 type QuestionDraft = FormQuestionInput & { key: string };
@@ -44,7 +47,10 @@ function createQuestionDraftFromExisting(question: FormQuestionInput): QuestionD
 const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
   [QuestionType.SCALE]: "Scale (1–5)",
   [QuestionType.SINGLE_CHOICE]: "Single choice",
+  [QuestionType.MULTIPLE_CHOICE]: "Multiple choice",
   [QuestionType.SHORT_TEXT]: "Short text",
+  [QuestionType.SLIDER]: "Slider",
+  [QuestionType.HEATMAP]: "Heatmap",
 };
 
 type FormBuilderProps = {
@@ -521,8 +527,8 @@ function QuestionOptionsEditor({
     );
   }
 
-  if (type === QuestionType.SINGLE_CHOICE) {
-    const choice = options as SingleChoiceOptions;
+  if (type === QuestionType.SINGLE_CHOICE || type === QuestionType.MULTIPLE_CHOICE) {
+    const choice = options as SingleChoiceOptions | MultipleChoiceOptions;
     return (
       <div className="space-y-3">
         {choice.choices.map((item, index) => (
@@ -588,6 +594,158 @@ function QuestionOptionsEditor({
         >
           Add choice
         </button>
+        {type === QuestionType.MULTIPLE_CHOICE && (
+          <div className="grid gap-4 border-t border-zinc-100 pt-4 sm:grid-cols-2">
+            <Field label="Min selections" htmlFor="multi-min">
+              <input
+                id="multi-min"
+                type="number"
+                min={1}
+                value={(choice as MultipleChoiceOptions).minSelections ?? ""}
+                onChange={(event) =>
+                  onChange({
+                    ...choice,
+                    minSelections: event.target.value
+                      ? Number(event.target.value)
+                      : undefined,
+                  })
+                }
+                className={inputClass()}
+                placeholder="1"
+              />
+            </Field>
+            <Field label="Max selections" htmlFor="multi-max">
+              <input
+                id="multi-max"
+                type="number"
+                min={1}
+                value={(choice as MultipleChoiceOptions).maxSelections ?? ""}
+                onChange={(event) =>
+                  onChange({
+                    ...choice,
+                    maxSelections: event.target.value
+                      ? Number(event.target.value)
+                      : undefined,
+                  })
+                }
+                className={inputClass()}
+                placeholder="All"
+              />
+            </Field>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (type === QuestionType.SLIDER) {
+    const slider = options as SliderOptions;
+    return (
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Min" htmlFor="slider-min">
+          <input
+            id="slider-min"
+            type="number"
+            value={slider.min}
+            onChange={(event) =>
+              onChange({ ...slider, min: Number(event.target.value) })
+            }
+            className={inputClass()}
+          />
+        </Field>
+        <Field label="Max" htmlFor="slider-max">
+          <input
+            id="slider-max"
+            type="number"
+            value={slider.max}
+            onChange={(event) =>
+              onChange({ ...slider, max: Number(event.target.value) })
+            }
+            className={inputClass()}
+          />
+        </Field>
+        <Field label="Step" htmlFor="slider-step">
+          <input
+            id="slider-step"
+            type="number"
+            min={0.01}
+            step={0.01}
+            value={slider.step ?? 1}
+            onChange={(event) =>
+              onChange({ ...slider, step: Number(event.target.value) })
+            }
+            className={inputClass()}
+          />
+        </Field>
+        <Field label="Min label" htmlFor="slider-min-label">
+          <input
+            id="slider-min-label"
+            value={slider.minLabel ?? ""}
+            onChange={(event) =>
+              onChange({ ...slider, minLabel: event.target.value })
+            }
+            className={inputClass()}
+            placeholder="Low"
+          />
+        </Field>
+        <Field label="Max label" htmlFor="slider-max-label">
+          <input
+            id="slider-max-label"
+            value={slider.maxLabel ?? ""}
+            onChange={(event) =>
+              onChange({ ...slider, maxLabel: event.target.value })
+            }
+            className={inputClass()}
+            placeholder="High"
+          />
+        </Field>
+      </div>
+    );
+  }
+
+  if (type === QuestionType.HEATMAP) {
+    const heatmap = options as HeatmapOptions;
+    return (
+      <div className="grid gap-4">
+        <Field label="Image URL" htmlFor="heatmap-image" required>
+          <input
+            id="heatmap-image"
+            value={heatmap.imageUrl}
+            onChange={(event) =>
+              onChange({ ...heatmap, imageUrl: event.target.value })
+            }
+            className={inputClass()}
+            placeholder="https://example.com/image.jpg"
+          />
+        </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Alt text" htmlFor="heatmap-alt">
+            <input
+              id="heatmap-alt"
+              value={heatmap.alt ?? ""}
+              onChange={(event) =>
+                onChange({ ...heatmap, alt: event.target.value })
+              }
+              className={inputClass()}
+              placeholder="Describe the image"
+            />
+          </Field>
+          <Field label="Max clicks" htmlFor="heatmap-max-clicks">
+            <input
+              id="heatmap-max-clicks"
+              type="number"
+              min={1}
+              value={heatmap.maxClicks ?? 1}
+              onChange={(event) =>
+                onChange({
+                  ...heatmap,
+                  maxClicks: Number(event.target.value) || 1,
+                })
+              }
+              className={inputClass()}
+            />
+          </Field>
+        </div>
       </div>
     );
   }

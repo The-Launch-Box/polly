@@ -3,7 +3,10 @@ import type {
   QuestionOptions,
   ScaleOptions,
   SingleChoiceOptions,
+  MultipleChoiceOptions,
   ShortTextOptions,
+  SliderOptions,
+  HeatmapOptions,
 } from "@/lib/types";
 
 export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -46,8 +49,24 @@ export function defaultOptionsForType(type: QuestionType): QuestionOptions {
           { value: "option-2", label: "Option 2" },
         ],
       };
+    case QuestionType.MULTIPLE_CHOICE:
+      return {
+        choices: [
+          { value: "option-1", label: "Option 1" },
+          { value: "option-2", label: "Option 2" },
+          { value: "option-3", label: "Option 3" },
+        ],
+      };
     case QuestionType.SHORT_TEXT:
       return { placeholder: "", maxLength: 500 };
+    case QuestionType.SLIDER:
+      return { min: 0, max: 100, step: 1, minLabel: "", maxLabel: "" };
+    case QuestionType.HEATMAP:
+      return {
+        imageUrl: "https://images.unsplash.com/photo-1497366216548-37526070297c?w=800",
+        alt: "Click on the image",
+        maxClicks: 1,
+      };
     default:
       return { placeholder: "" };
   }
@@ -127,8 +146,9 @@ function validateQuestionOptions(
       }
       return null;
     }
-    case QuestionType.SINGLE_CHOICE: {
-      const choice = options as SingleChoiceOptions;
+    case QuestionType.SINGLE_CHOICE:
+    case QuestionType.MULTIPLE_CHOICE: {
+      const choice = options as SingleChoiceOptions | MultipleChoiceOptions;
       if (!Array.isArray(choice.choices) || choice.choices.length < 2) {
         return "Add at least two choices.";
       }
@@ -149,6 +169,20 @@ function validateQuestionOptions(
         }
         values.add(value);
       }
+      if (type === QuestionType.MULTIPLE_CHOICE) {
+        const multi = options as MultipleChoiceOptions;
+        const min = multi.minSelections ?? 1;
+        const max = multi.maxSelections ?? choice.choices.length;
+        if (!Number.isInteger(min) || min < 1) {
+          return "Minimum selections must be at least 1.";
+        }
+        if (!Number.isInteger(max) || max < min) {
+          return "Maximum selections must be at least the minimum.";
+        }
+        if (max > choice.choices.length) {
+          return "Maximum selections cannot exceed the number of choices.";
+        }
+      }
       return null;
     }
     case QuestionType.SHORT_TEXT: {
@@ -158,6 +192,40 @@ function validateQuestionOptions(
         (!Number.isInteger(text.maxLength) || text.maxLength < 1)
       ) {
         return "Max length must be a positive number.";
+      }
+      return null;
+    }
+    case QuestionType.SLIDER: {
+      const slider = options as SliderOptions;
+      if (typeof slider.min !== "number" || typeof slider.max !== "number") {
+        return "Slider min and max are required.";
+      }
+      if (slider.min >= slider.max) {
+        return "Slider max must be greater than min.";
+      }
+      if (
+        slider.step !== undefined &&
+        (typeof slider.step !== "number" || slider.step <= 0)
+      ) {
+        return "Slider step must be a positive number.";
+      }
+      return null;
+    }
+    case QuestionType.HEATMAP: {
+      const heatmap = options as HeatmapOptions;
+      if (!heatmap.imageUrl?.trim()) {
+        return "Heatmap image URL is required.";
+      }
+      try {
+        new URL(heatmap.imageUrl.trim());
+      } catch {
+        return "Heatmap image URL must be a valid URL.";
+      }
+      if (
+        heatmap.maxClicks !== undefined &&
+        (!Number.isInteger(heatmap.maxClicks) || heatmap.maxClicks < 1)
+      ) {
+        return "Max clicks must be a positive whole number.";
       }
       return null;
     }
@@ -204,14 +272,24 @@ function normalizeQuestionOptions(
           : {}),
       };
     }
-    case QuestionType.SINGLE_CHOICE: {
-      const choice = options as SingleChoiceOptions;
-      return {
+    case QuestionType.SINGLE_CHOICE:
+    case QuestionType.MULTIPLE_CHOICE: {
+      const choice = options as SingleChoiceOptions | MultipleChoiceOptions;
+      const normalized: MultipleChoiceOptions | SingleChoiceOptions = {
         choices: choice.choices.map((item) => ({
           value: item.value.trim(),
           label: item.label.trim(),
         })),
       };
+      if (type === QuestionType.MULTIPLE_CHOICE) {
+        const multi = options as MultipleChoiceOptions;
+        return {
+          ...normalized,
+          ...(multi.minSelections ? { minSelections: multi.minSelections } : {}),
+          ...(multi.maxSelections ? { maxSelections: multi.maxSelections } : {}),
+        };
+      }
+      return normalized;
     }
     case QuestionType.SHORT_TEXT: {
       const text = options as ShortTextOptions;
@@ -220,6 +298,28 @@ function normalizeQuestionOptions(
           ? { placeholder: text.placeholder.trim() }
           : {}),
         ...(text.maxLength ? { maxLength: text.maxLength } : {}),
+      };
+    }
+    case QuestionType.SLIDER: {
+      const slider = options as SliderOptions;
+      return {
+        min: slider.min,
+        max: slider.max,
+        step: slider.step ?? 1,
+        ...(slider.minLabel?.trim()
+          ? { minLabel: slider.minLabel.trim() }
+          : {}),
+        ...(slider.maxLabel?.trim()
+          ? { maxLabel: slider.maxLabel.trim() }
+          : {}),
+      };
+    }
+    case QuestionType.HEATMAP: {
+      const heatmap = options as HeatmapOptions;
+      return {
+        imageUrl: heatmap.imageUrl.trim(),
+        ...(heatmap.alt?.trim() ? { alt: heatmap.alt.trim() } : {}),
+        maxClicks: heatmap.maxClicks ?? 1,
       };
     }
     default:
