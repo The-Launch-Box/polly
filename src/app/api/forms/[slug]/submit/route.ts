@@ -15,6 +15,11 @@ import {
   isSliderOptions,
 } from "@/lib/types";
 import { validateNpsAnswer } from "@/lib/nps";
+import { validateContactInfoAnswer, normalizeContactInfoAnswer, isContactInfoAnswer, isContactInfoComplete } from "@/lib/contact-info";
+import {
+  sanitizeAnswerValueForAnonymous,
+  stripSubmissionTiming,
+} from "@/lib/anonymity";
 
 type SubmitBody = {
   answers: AnswerInput[];
@@ -85,6 +90,7 @@ function validateAnswer(
   options: QuestionOptions | null,
   value: unknown,
   required: boolean,
+  anonymous = false,
 ): string | null {
   if (isEmptyAnswer(value)) {
     return required ? "This question is required." : null;
@@ -203,7 +209,10 @@ function validateAnswer(
       if (!isNpsOptions(options)) {
         return "Invalid NPS configuration.";
       }
-      return validateNpsAnswer(value, options, required);
+      return validateNpsAnswer(value, options, required, anonymous);
+    }
+    case QuestionType.CONTACT_INFO: {
+      return validateContactInfoAnswer(value, required, anonymous);
     }
     default:
       return "Unsupported question type.";
@@ -230,9 +239,9 @@ export async function POST(
     return NextResponse.json({ error: "Invalid submission payload." }, { status: 400 });
   }
 
-  const { body, filesByQuestion } = parsed;
+  const { body: rawBody, filesByQuestion } = parsed;
 
-  if (!Array.isArray(body.answers)) {
+  if (!Array.isArray(rawBody.answers)) {
     return NextResponse.json(
       { error: "answers must be an array." },
       { status: 400 },
@@ -252,6 +261,8 @@ export async function POST(
     return NextResponse.json({ error: "Form not found." }, { status: 404 });
   }
 
+  const body = stripSubmissionTiming(rawBody, form.anonymous);
+
   const answersByQuestion = new Map(
     body.answers.map((answer) => [answer.questionId, answer]),
   );
@@ -269,6 +280,7 @@ export async function POST(
       question.options as QuestionOptions | null,
       value,
       question.required,
+      form.anonymous,
     );
     if (error) {
       errors[question.id] = error;
@@ -284,7 +296,9 @@ export async function POST(
       const created = await tx.submission.create({
         data: {
           formId: form.id,
-          totalDurationMs: normalizeDurationMs(body.totalDurationMs),
+          totalDurationMs: form.anonymous
+            ? null
+            : normalizeDurationMs(body.totalDurationMs),
         },
       });
 
@@ -298,10 +312,21 @@ export async function POST(
           if (isEmptyAnswer(rawValue)) {
             return null;
           }
+          if (
+            question.type === QuestionType.CONTACT_INFO &&
+            isContactInfoAnswer(rawValue) &&
+            !isContactInfoComplete(rawValue) &&
+            !question.required
+          ) {
+            return null;
+          }
 
-          let storedValue: unknown = rawValue;
-          if (question.type === QuestionType.SHORT_TEXT && typeof rawValue === "string") {
-            storedValue = rawValue.trim();
+          let storedValue: unknown = sanitizeAnswerValueForAnonymous(
+            question.type,
+            rawValue,
+          );
+          if (question.type === QuestionType.SHORT_TEXT && typeof storedValue === "string") {
+            storedValue = storedValue.trim();
           }
           if (
             question.type === QuestionType.SINGLE_CHOICE &&
@@ -342,12 +367,11 @@ export async function POST(
               file: rawValue,
             });
           }
-          if (question.type === QuestionType.NPS && typeof rawValue === "object" && rawValue) {
-            const npsValue = rawValue as {
+          if (question.type === QuestionType.NPS && typeof storedValue === "object" && storedValue) {
+            const npsValue = storedValue as {
               score: number;
               path: string;
               followUpText?: string;
-              contact?: Record<string, string>;
             };
             storedValue = {
               score: npsValue.score,
@@ -355,24 +379,22 @@ export async function POST(
               ...(npsValue.followUpText?.trim()
                 ? { followUpText: npsValue.followUpText.trim() }
                 : {}),
-              ...(npsValue.contact
-                ? {
-                    contact: Object.fromEntries(
-                      Object.entries(npsValue.contact).map(([key, entry]) => [
-                        key,
-                        typeof entry === "string" ? entry.trim() : entry,
-                      ]),
-                    ),
-                  }
-                : {}),
             };
+          }
+          if (
+            question.type === QuestionType.CONTACT_INFO &&
+            isContactInfoAnswer(storedValue)
+          ) {
+            storedValue = normalizeContactInfoAnswer(storedValue);
           }
 
           return {
             submissionId: created.id,
             questionId: question.id,
             value: storedValue as object,
-            durationMs: normalizeDurationMs(answer?.durationMs),
+            durationMs: form.anonymous
+              ? null
+              : normalizeDurationMs(answer?.durationMs),
           };
         }),
       );

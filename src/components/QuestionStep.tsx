@@ -1,7 +1,11 @@
 "use client";
 
 import { formatFileSize, getAcceptAttribute } from "@/lib/attachments-shared";
-import type { FormQuestion, HeatmapPoint } from "@/lib/types";
+import {
+  emptyContactInfoAnswer,
+  isContactInfoAnswer,
+} from "@/lib/contact-info";
+import type { ContactInfoAnswer, FormQuestion, HeatmapPoint } from "@/lib/types";
 import {
   isAttachmentAnswer,
   isAttachmentOptions,
@@ -92,6 +96,13 @@ export function QuestionStep({ question, value, onChange }: QuestionStepProps) {
           <AttachmentInput
             options={isAttachmentOptions(question.options) ? question.options : null}
             value={value}
+            onChange={onChange}
+          />
+        )}
+
+        {question.type === "CONTACT_INFO" && (
+          <ContactInfoInput
+            value={isContactInfoAnswer(value) ? value : emptyContactInfoAnswer()}
             onChange={onChange}
           />
         )}
@@ -529,6 +540,95 @@ function AttachmentInput({
           Uploaded: {savedAttachment.filename}
         </p>
       )}
+    </div>
+  );
+}
+
+function ContactInfoInput({
+  value,
+  onChange,
+}: {
+  value: ContactInfoAnswer;
+  onChange: (value: ContactInfoAnswer) => void;
+}) {
+  const inputStyle = {
+    borderColor: "var(--theme-border)",
+    backgroundColor: "var(--theme-surface)",
+    color: "var(--theme-text)",
+  };
+
+  function updateField(field: keyof ContactInfoAnswer, fieldValue: string) {
+    onChange({ ...value, [field]: fieldValue });
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="block">
+          <span
+            className="mb-1 block text-sm font-medium"
+            style={{ color: "var(--theme-text)" }}
+          >
+            First name
+          </span>
+          <input
+            type="text"
+            autoComplete="given-name"
+            value={value.firstName}
+            onChange={(event) => updateField("firstName", event.target.value)}
+            className="w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:ring-2"
+            style={inputStyle}
+          />
+        </label>
+        <label className="block">
+          <span
+            className="mb-1 block text-sm font-medium"
+            style={{ color: "var(--theme-text)" }}
+          >
+            Last name
+          </span>
+          <input
+            type="text"
+            autoComplete="family-name"
+            value={value.lastName}
+            onChange={(event) => updateField("lastName", event.target.value)}
+            className="w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:ring-2"
+            style={inputStyle}
+          />
+        </label>
+      </div>
+      <label className="block">
+        <span
+          className="mb-1 block text-sm font-medium"
+          style={{ color: "var(--theme-text)" }}
+        >
+          Company email
+        </span>
+        <input
+          type="email"
+          autoComplete="email"
+          value={value.email}
+          onChange={(event) => updateField("email", event.target.value)}
+          className="w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:ring-2"
+          style={inputStyle}
+        />
+      </label>
+      <label className="block">
+        <span
+          className="mb-1 block text-sm font-medium"
+          style={{ color: "var(--theme-text)" }}
+        >
+          Business name
+        </span>
+        <input
+          type="text"
+          autoComplete="organization"
+          value={value.businessName}
+          onChange={(event) => updateField("businessName", event.target.value)}
+          className="w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:ring-2"
+          style={inputStyle}
+        />
+      </label>
     </div>
   );
 }

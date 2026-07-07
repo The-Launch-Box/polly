@@ -85,6 +85,15 @@ export type NpsAnswer = {
   contact?: Partial<Record<NpsContactField, string>>;
 };
 
+export type ContactInfoOptions = Record<string, never>;
+
+export type ContactInfoAnswer = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  businessName: string;
+};
+
 export type QuestionOptions =
   | ScaleOptions
   | SingleChoiceOptions
@@ -93,7 +102,8 @@ export type QuestionOptions =
   | SliderOptions
   | HeatmapOptions
   | AttachmentOptions
-  | NpsOptions;
+  | NpsOptions
+  | ContactInfoOptions;
 
 export type FormQuestion = {
   id: string;
@@ -109,6 +119,7 @@ export type FormPayload = {
   title: string;
   description: string | null;
   themeId: string;
+  anonymous: boolean;
   questions: FormQuestion[];
 };
 
@@ -236,6 +247,17 @@ export function isNpsAnswer(value: unknown): value is NpsAnswer {
   );
 }
 
+export function isContactInfoAnswer(value: unknown): value is ContactInfoAnswer {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as ContactInfoAnswer).firstName === "string" &&
+    typeof (value as ContactInfoAnswer).lastName === "string" &&
+    typeof (value as ContactInfoAnswer).email === "string" &&
+    typeof (value as ContactInfoAnswer).businessName === "string"
+  );
+}
+
 export function isAttachmentAnswer(value: unknown): value is AttachmentAnswer {
   return (
     typeof value === "object" &&
@@ -298,6 +320,9 @@ export function formatAnswerValue(value: unknown): string {
       }
     }
     return parts.join(" · ");
+  }
+  if (isContactInfoAnswer(value)) {
+    return `${value.firstName} ${value.lastName} · ${value.email} · ${value.businessName}`;
   }
   if (typeof value === "object" && value !== null && "label" in value) {
     return String((value as { label: string }).label);

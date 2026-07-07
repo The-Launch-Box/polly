@@ -42,6 +42,7 @@ export async function GET(_request: Request, context: RouteContext) {
     title: form.title,
     description: form.description,
     themeId: form.themeId,
+    anonymous: form.anonymous,
     submissionCount: form._count.submissions,
     questions: form.questions.map((question) => ({
       id: question.id,

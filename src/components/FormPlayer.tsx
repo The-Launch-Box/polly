@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { NpsFlow } from "@/components/NpsFlow";
+import { validateContactInfoAnswer } from "@/lib/contact-info";
 import type { FormPayload, NpsAnswer } from "@/lib/types";
 import { isHeatmapPoint, isNpsOptions } from "@/lib/types";
 import { ProgressBar } from "@/components/ProgressBar";
@@ -124,6 +125,11 @@ export function FormPlayer({ form }: FormPlayerProps) {
     }
 
     const value = answers[question.id];
+
+    if (question.type === "CONTACT_INFO") {
+      return validateContactInfoAnswer(value, question.required, form.anonymous);
+    }
+
     if (!question.required) {
       return null;
     }
@@ -171,9 +177,11 @@ export function FormPlayer({ form }: FormPlayerProps) {
     const answerPayload = Object.entries(nextAnswers).map(([questionId, value]) => ({
       questionId,
       value: value instanceof File ? null : value,
-      durationMs: durationsRef.current[questionId],
+      ...(form.anonymous ? {} : { durationMs: durationsRef.current[questionId] }),
     }));
-    const totalDurationMs = Date.now() - surveyStartedAt.current;
+    const timingPayload = form.anonymous
+      ? {}
+      : { totalDurationMs: Date.now() - surveyStartedAt.current };
     const hasFiles = Object.values(nextAnswers).some((value) => value instanceof File);
 
     const response = await fetch(`/api/forms/${form.slug}/submit`, {
@@ -185,7 +193,7 @@ export function FormPlayer({ form }: FormPlayerProps) {
               formData.append(
                 "payload",
                 JSON.stringify({
-                  totalDurationMs,
+                  ...timingPayload,
                   answers: answerPayload,
                 }),
               );
@@ -200,7 +208,7 @@ export function FormPlayer({ form }: FormPlayerProps) {
         : {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              totalDurationMs,
+              ...timingPayload,
               answers: answerPayload,
             }),
           }),
@@ -369,6 +377,7 @@ export function FormPlayer({ form }: FormPlayerProps) {
           {isNpsQuestion ? (
             <NpsFlow
               question={currentQuestion}
+              anonymous={form.anonymous}
               onBack={handleBack}
               canGoBack={currentIndex > 0}
               onPromoterSubmit={handleNpsPromoterSubmit}

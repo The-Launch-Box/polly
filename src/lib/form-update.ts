@@ -96,6 +96,7 @@ export async function updateFormBySlug(
         title: normalized.title,
         description: normalized.description,
         themeId: normalized.themeId ?? "default",
+        anonymous: normalized.anonymous ?? false,
       },
     });
 

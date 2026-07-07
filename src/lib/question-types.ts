@@ -9,6 +9,7 @@ export const QUESTION_TYPE_VALUES = [
   "HEATMAP",
   "ATTACHMENT",
   "NPS",
+  "CONTACT_INFO",
 ] as const;
 
 export type QuestionTypeValue = (typeof QUESTION_TYPE_VALUES)[number];
@@ -22,6 +23,7 @@ export const QUESTION_TYPE_LABELS: Record<QuestionTypeValue, string> = {
   HEATMAP: "Heatmap",
   ATTACHMENT: "Attachment",
   NPS: "NPS (0–10)",
+  CONTACT_INFO: "Contact information",
 };
 
 export function isQuestionTypeValue(value: string): value is QuestionTypeValue {

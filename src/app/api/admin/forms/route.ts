@@ -66,6 +66,7 @@ export async function POST(request: Request) {
         title: normalized.title,
         description: normalized.description,
         themeId: normalized.themeId ?? "default",
+        anonymous: normalized.anonymous ?? false,
         questions: {
           create: normalized.questions.map((question) => ({
             order: question.order,

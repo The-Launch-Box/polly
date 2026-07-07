@@ -19,6 +19,7 @@ type NpsStep = "score" | "contact" | "followup" | "closing";
 
 type NpsFlowProps = {
   question: FormQuestion;
+  anonymous: boolean;
   onBack: () => void;
   canGoBack: boolean;
   onPromoterSubmit: (answer: NpsAnswer) => Promise<{ redirectUrl?: string }>;
@@ -32,6 +33,7 @@ type NpsFlowProps = {
 
 export function NpsFlow({
   question,
+  anonymous,
   onBack,
   canGoBack,
   onPromoterSubmit,
@@ -76,6 +78,11 @@ export function NpsFlow({
 
     setError(null);
     if (isPromoterScore(score)) {
+      if (anonymous) {
+        const answer = buildNpsAnswer({ score });
+        await onPromoterSubmit(answer);
+        return;
+      }
       setStep("contact");
       return;
     }

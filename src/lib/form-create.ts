@@ -38,6 +38,7 @@ export type FormInput = {
   title: string;
   description?: string | null;
   themeId?: string;
+  anonymous?: boolean;
   questions: FormQuestionInput[];
 };
 
@@ -101,6 +102,8 @@ export function defaultOptionsForType(type: QuestionType): QuestionOptions {
         closingLinks: [],
         closingLogoUrl: "",
       };
+    case "CONTACT_INFO":
+      return {};
     default:
       return { placeholder: "" };
   }
@@ -138,6 +141,11 @@ export function validateFormInput(input: FormInput): Record<string, string> {
   if (!Array.isArray(input.questions) || input.questions.length === 0) {
     errors.questions = "Add at least one question.";
     return errors;
+  }
+
+  if (input.anonymous && input.questions.some((question) => question.type === "CONTACT_INFO")) {
+    errors.questions =
+      "Anonymous surveys cannot include contact information questions.";
   }
 
   input.questions.forEach((question, index) => {
@@ -340,6 +348,8 @@ function validateQuestionOptions(
       }
       return null;
     }
+    case "CONTACT_INFO":
+      return null;
     default:
       return "Unsupported question type.";
   }
@@ -353,6 +363,7 @@ export function normalizeFormInput(input: FormInput): FormInput {
     title: input.title.trim(),
     description: input.description?.trim() || null,
     themeId: input.themeId?.trim() || DEFAULT_THEME_ID,
+    anonymous: Boolean(input.anonymous),
     questions: input.questions.map((question, index) => ({
       ...(question.id ? { id: question.id } : {}),
       order: index + 1,
@@ -477,6 +488,8 @@ function normalizeQuestionOptions(
           : {}),
       };
     }
+    case "CONTACT_INFO":
+      return {};
     default:
       return options;
   }

@@ -21,6 +21,7 @@ import {
   getDefaultNpsPrompt,
   NPS_CONTACT_FIELD_LABELS,
 } from "@/lib/nps";
+import { DEFAULT_CONTACT_INFO_PROMPT } from "@/lib/contact-info";
 import { ThemePicker } from "@/components/admin/ThemePicker";
 import type {
   QuestionOptions,
@@ -88,6 +89,7 @@ export function FormBuilder({
   const [title, setTitle] = useState(initialData?.title ?? "");
   const [description, setDescription] = useState(initialData?.description ?? "");
   const [themeId, setThemeId] = useState(initialData?.themeId ?? DEFAULT_THEME_ID);
+  const [anonymous, setAnonymous] = useState(initialData?.anonymous ?? false);
   const [questions, setQuestions] = useState<QuestionDraft[]>(() =>
     initialData?.questions.length
       ? initialData.questions.map(createQuestionDraftFromExisting)
@@ -136,6 +138,9 @@ export function FormBuilder({
                 ),
               }
             : {}),
+          ...(type === "CONTACT_INFO"
+            ? { prompt: DEFAULT_CONTACT_INFO_PROMPT }
+            : {}),
         };
       }),
     );
@@ -175,6 +180,7 @@ export function FormBuilder({
       title,
       description: description || null,
       themeId,
+      anonymous,
       questions: questions.map((question, index) => {
         if (!isQuestionTypeValue(question.type)) {
           throw new Error(
@@ -329,6 +335,23 @@ export function FormBuilder({
             onChange={setThemeId}
             error={fieldErrors.themeId}
           />
+
+          <Field
+            label="Anonymous responses"
+            htmlFor="anonymous"
+            hint="When enabled, no timing metadata or NPS contact details are stored. IP addresses, device info, and location are never recorded."
+          >
+            <label className="flex items-center gap-3 text-sm text-zinc-700">
+              <input
+                id="anonymous"
+                type="checkbox"
+                checked={anonymous}
+                onChange={(event) => setAnonymous(event.target.checked)}
+                className="h-4 w-4 rounded border-zinc-300"
+              />
+              Keep respondent identity private
+            </label>
+          </Field>
         </div>
       </section>
 
@@ -359,6 +382,7 @@ export function FormBuilder({
             index={index}
             question={question}
             total={questions.length}
+            anonymous={anonymous}
             errors={fieldErrors}
             onChange={(patch) => updateQuestion(question.key, patch)}
             onTypeChange={(type) => changeQuestionType(question.key, type)}
@@ -402,6 +426,7 @@ function QuestionEditor({
   index,
   question,
   total,
+  anonymous,
   errors,
   onChange,
   onTypeChange,
@@ -411,6 +436,7 @@ function QuestionEditor({
   index: number;
   question: QuestionDraft;
   total: number;
+  anonymous: boolean;
   errors: Record<string, string>;
   onChange: (patch: Partial<QuestionDraft>) => void;
   onTypeChange: (type: QuestionType) => void;
@@ -512,6 +538,7 @@ function QuestionEditor({
         <QuestionOptionsEditor
           type={question.type}
           options={question.options}
+          anonymous={anonymous}
           onChange={(options) => onChange({ options })}
         />
         {optionsError && (
@@ -525,10 +552,12 @@ function QuestionEditor({
 function QuestionOptionsEditor({
   type,
   options,
+  anonymous,
   onChange,
 }: {
   type: QuestionType;
   options: QuestionOptions;
+  anonymous: boolean;
   onChange: (options: QuestionOptions) => void;
 }) {
   if (type === "SCALE") {
@@ -908,7 +937,11 @@ function QuestionOptionsEditor({
 
         <Field
           label="Contact fields for score 10"
-          hint="Collected before redirecting promoters to leave a review."
+          hint={
+            anonymous
+              ? "Disabled while anonymous responses are enabled for this survey."
+              : "Collected before redirecting promoters to leave a review."
+          }
         >
           <div className="flex flex-wrap gap-3">
             {(["name", "email", "company", "title"] as NpsContactField[]).map(
@@ -917,11 +950,12 @@ function QuestionOptionsEditor({
                 return (
                   <label
                     key={field}
-                    className="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+                    className={`flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-700 ${anonymous ? "opacity-50" : ""}`}
                   >
                     <input
                       type="checkbox"
                       checked={checked}
+                      disabled={anonymous}
                       onChange={(event) => {
                         const next = event.target.checked
                           ? [...contactFields, field]
@@ -1043,6 +1077,25 @@ function QuestionOptionsEditor({
             </div>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  if (type === "CONTACT_INFO") {
+    return (
+      <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
+        <p className="font-medium text-zinc-800">Fields included</p>
+        <ul className="mt-2 list-inside list-disc space-y-1">
+          <li>First and last name</li>
+          <li>Company email</li>
+          <li>Business name</li>
+        </ul>
+        {anonymous && (
+          <p className="mt-3 text-amber-700">
+            Contact information questions are not allowed while anonymous
+            responses are enabled.
+          </p>
+        )}
       </div>
     );
   }

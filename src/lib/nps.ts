@@ -98,6 +98,7 @@ export function validateNpsAnswer(
   value: unknown,
   options: NpsOptions,
   required: boolean,
+  anonymous = false,
 ): string | null {
   if (value === null || value === undefined) {
     return required ? "This question is required." : null;
@@ -122,7 +123,7 @@ export function validateNpsAnswer(
     return "Invalid NPS response path.";
   }
 
-  if (expectedPath === "promoter") {
+  if (expectedPath === "promoter" && !anonymous) {
     const contactError = validateNpsContact(
       answer.contact ?? {},
       getNpsContactFields(options),
@@ -138,6 +139,10 @@ export function validateNpsAnswer(
         return "Promoter redirect URL is misconfigured.";
       }
     }
+  }
+
+  if (expectedPath === "promoter" && anonymous && answer.contact) {
+    return "Contact details cannot be submitted on anonymous surveys.";
   }
 
   return null;

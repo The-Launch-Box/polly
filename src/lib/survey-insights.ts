@@ -285,6 +285,10 @@ function summarizeQuestion(
     };
   }
 
+  if (question.type === QuestionType.CONTACT_INFO) {
+    return { summary: `${answers.length} contact response(s)` };
+  }
+
   return { summary: `${answers.length} response(s)` };
 }
 

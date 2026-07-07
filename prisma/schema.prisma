@@ -13,6 +13,7 @@ model Form {
   title       String
   description String?
   themeId     String       @default("default")
+  anonymous   Boolean      @default(false)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   questions   Question[]
@@ -28,6 +29,7 @@ enum QuestionType {
   HEATMAP
   ATTACHMENT
   NPS
+  CONTACT_INFO
 }
 
 model Question {
