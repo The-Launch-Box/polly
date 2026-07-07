@@ -1,5 +1,9 @@
 import { QuestionType } from "@prisma/client";
 import { COMPANY_THEME_IDS, DEFAULT_THEME_ID } from "@/lib/company-themes";
+import {
+  isQuestionTypeValue,
+  type QuestionTypeValue,
+} from "@/lib/question-types";
 import type {
   QuestionOptions,
   ScaleOptions,
@@ -42,17 +46,21 @@ export function slugify(text: string): string {
 }
 
 export function defaultOptionsForType(type: QuestionType): QuestionOptions {
-  switch (type) {
-    case QuestionType.SCALE:
+  if (!isQuestionTypeValue(type)) {
+    return { placeholder: "" };
+  }
+
+  switch (type as QuestionTypeValue) {
+    case "SCALE":
       return { min: 1, max: 5, minLabel: "", maxLabel: "" };
-    case QuestionType.SINGLE_CHOICE:
+    case "SINGLE_CHOICE":
       return {
         choices: [
           { value: "option-1", label: "Option 1" },
           { value: "option-2", label: "Option 2" },
         ],
       };
-    case QuestionType.MULTIPLE_CHOICE:
+    case "MULTIPLE_CHOICE":
       return {
         choices: [
           { value: "option-1", label: "Option 1" },
@@ -60,17 +68,17 @@ export function defaultOptionsForType(type: QuestionType): QuestionOptions {
           { value: "option-3", label: "Option 3" },
         ],
       };
-    case QuestionType.SHORT_TEXT:
+    case "SHORT_TEXT":
       return { placeholder: "", maxLength: 500 };
-    case QuestionType.SLIDER:
+    case "SLIDER":
       return { min: 0, max: 100, step: 1, minLabel: "", maxLabel: "" };
-    case QuestionType.HEATMAP:
+    case "HEATMAP":
       return {
         imageUrl: "https://images.unsplash.com/photo-1497366216548-37526070297c?w=800",
         alt: "Click on the image",
         maxClicks: 1,
       };
-    case QuestionType.ATTACHMENT:
+    case "ATTACHMENT":
       return {
         allowedKinds: ["image", "video", "document"],
         maxSizeMb: 25,
@@ -140,8 +148,12 @@ function validateQuestionOptions(
   type: QuestionType,
   options: QuestionOptions,
 ): string | null {
-  switch (type) {
-    case QuestionType.SCALE: {
+  if (!isQuestionTypeValue(type)) {
+    return "Unsupported question type.";
+  }
+
+  switch (type as QuestionTypeValue) {
+    case "SCALE": {
       const scale = options as ScaleOptions;
       if (
         typeof scale.min !== "number" ||
@@ -159,8 +171,8 @@ function validateQuestionOptions(
       }
       return null;
     }
-    case QuestionType.SINGLE_CHOICE:
-    case QuestionType.MULTIPLE_CHOICE: {
+    case "SINGLE_CHOICE":
+    case "MULTIPLE_CHOICE": {
       const choice = options as SingleChoiceOptions | MultipleChoiceOptions;
       if (!Array.isArray(choice.choices) || choice.choices.length < 2) {
         return "Add at least two choices.";
@@ -182,7 +194,7 @@ function validateQuestionOptions(
         }
         values.add(value);
       }
-      if (type === QuestionType.MULTIPLE_CHOICE) {
+      if (type === "MULTIPLE_CHOICE") {
         const multi = options as MultipleChoiceOptions;
         const min = multi.minSelections ?? 1;
         const max = multi.maxSelections ?? choice.choices.length;
@@ -198,7 +210,7 @@ function validateQuestionOptions(
       }
       return null;
     }
-    case QuestionType.SHORT_TEXT: {
+    case "SHORT_TEXT": {
       const text = options as ShortTextOptions;
       if (
         text.maxLength !== undefined &&
@@ -208,7 +220,7 @@ function validateQuestionOptions(
       }
       return null;
     }
-    case QuestionType.SLIDER: {
+    case "SLIDER": {
       const slider = options as SliderOptions;
       if (typeof slider.min !== "number" || typeof slider.max !== "number") {
         return "Slider min and max are required.";
@@ -224,7 +236,7 @@ function validateQuestionOptions(
       }
       return null;
     }
-    case QuestionType.HEATMAP: {
+    case "HEATMAP": {
       const heatmap = options as HeatmapOptions;
       if (!heatmap.imageUrl?.trim()) {
         return "Heatmap image URL is required.";
@@ -242,7 +254,7 @@ function validateQuestionOptions(
       }
       return null;
     }
-    case QuestionType.ATTACHMENT: {
+    case "ATTACHMENT": {
       const attachment = options as AttachmentOptions;
       if (
         attachment.allowedKinds !== undefined &&
@@ -293,8 +305,12 @@ function normalizeQuestionOptions(
   type: QuestionType,
   options: QuestionOptions,
 ): QuestionOptions {
-  switch (type) {
-    case QuestionType.SCALE: {
+  if (!isQuestionTypeValue(type)) {
+    return options;
+  }
+
+  switch (type as QuestionTypeValue) {
+    case "SCALE": {
       const scale = options as ScaleOptions;
       return {
         min: scale.min,
@@ -307,8 +323,8 @@ function normalizeQuestionOptions(
           : {}),
       };
     }
-    case QuestionType.SINGLE_CHOICE:
-    case QuestionType.MULTIPLE_CHOICE: {
+    case "SINGLE_CHOICE":
+    case "MULTIPLE_CHOICE": {
       const choice = options as SingleChoiceOptions | MultipleChoiceOptions;
       const normalized: MultipleChoiceOptions | SingleChoiceOptions = {
         choices: choice.choices.map((item) => ({
@@ -316,7 +332,7 @@ function normalizeQuestionOptions(
           label: item.label.trim(),
         })),
       };
-      if (type === QuestionType.MULTIPLE_CHOICE) {
+      if (type === "MULTIPLE_CHOICE") {
         const multi = options as MultipleChoiceOptions;
         return {
           ...normalized,
@@ -326,7 +342,7 @@ function normalizeQuestionOptions(
       }
       return normalized;
     }
-    case QuestionType.SHORT_TEXT: {
+    case "SHORT_TEXT": {
       const text = options as ShortTextOptions;
       return {
         ...(text.placeholder?.trim()
@@ -335,7 +351,7 @@ function normalizeQuestionOptions(
         ...(text.maxLength ? { maxLength: text.maxLength } : {}),
       };
     }
-    case QuestionType.SLIDER: {
+    case "SLIDER": {
       const slider = options as SliderOptions;
       return {
         min: slider.min,
@@ -349,7 +365,7 @@ function normalizeQuestionOptions(
           : {}),
       };
     }
-    case QuestionType.HEATMAP: {
+    case "HEATMAP": {
       const heatmap = options as HeatmapOptions;
       return {
         imageUrl: heatmap.imageUrl.trim(),
@@ -357,7 +373,7 @@ function normalizeQuestionOptions(
         maxClicks: heatmap.maxClicks ?? 1,
       };
     }
-    case QuestionType.ATTACHMENT: {
+    case "ATTACHMENT": {
       const attachment = options as AttachmentOptions;
       return {
         allowedKinds:

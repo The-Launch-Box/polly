@@ -11,6 +11,11 @@ import {
 } from "@/lib/form-create";
 import { formatFileSize } from "@/lib/attachments-shared";
 import { DEFAULT_THEME_ID } from "@/lib/company-themes";
+import {
+  asQuestionType,
+  QUESTION_TYPE_LABELS,
+  QUESTION_TYPE_VALUES,
+} from "@/lib/question-types";
 import { ThemePicker } from "@/components/admin/ThemePicker";
 import type {
   QuestionOptions,
@@ -26,7 +31,7 @@ import type {
 
 type QuestionDraft = FormQuestionInput & { key: string };
 
-function createQuestionDraft(type: QuestionType = QuestionType.SCALE): QuestionDraft {
+function createQuestionDraft(type: QuestionType = "SCALE"): QuestionDraft {
   return {
     key: crypto.randomUUID(),
     order: 0,
@@ -48,16 +53,6 @@ function createQuestionDraftFromExisting(question: FormQuestionInput): QuestionD
     options: question.options,
   };
 }
-
-const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
-  [QuestionType.SCALE]: "Scale (1–5)",
-  [QuestionType.SINGLE_CHOICE]: "Single choice",
-  [QuestionType.MULTIPLE_CHOICE]: "Multiple choice",
-  [QuestionType.SHORT_TEXT]: "Short text",
-  [QuestionType.SLIDER]: "Slider",
-  [QuestionType.HEATMAP]: "Heatmap",
-  [QuestionType.ATTACHMENT]: "Attachment",
-};
 
 const ATTACHMENT_KIND_LABELS: Record<AttachmentKind, string> = {
   image: "Images",
@@ -427,13 +422,13 @@ function QuestionEditor({
             id={`type-${question.key}`}
             value={question.type}
             onChange={(event) =>
-              onTypeChange(event.target.value as QuestionType)
+              onTypeChange(asQuestionType(event.target.value))
             }
             className={inputClass()}
           >
-            {Object.entries(QUESTION_TYPE_LABELS).map(([value, label]) => (
+            {QUESTION_TYPE_VALUES.map((value) => (
               <option key={value} value={value}>
-                {label}
+                {QUESTION_TYPE_LABELS[value]}
               </option>
             ))}
           </select>
@@ -495,7 +490,7 @@ function QuestionOptionsEditor({
   options: QuestionOptions;
   onChange: (options: QuestionOptions) => void;
 }) {
-  if (type === QuestionType.SCALE) {
+  if (type === "SCALE") {
     const scale = options as ScaleOptions;
     return (
       <div className="grid gap-4 sm:grid-cols-2">
@@ -547,7 +542,7 @@ function QuestionOptionsEditor({
     );
   }
 
-  if (type === QuestionType.SINGLE_CHOICE || type === QuestionType.MULTIPLE_CHOICE) {
+  if (type === "SINGLE_CHOICE" || type === "MULTIPLE_CHOICE") {
     const choice = options as SingleChoiceOptions | MultipleChoiceOptions;
     return (
       <div className="space-y-3">
@@ -614,7 +609,7 @@ function QuestionOptionsEditor({
         >
           Add choice
         </button>
-        {type === QuestionType.MULTIPLE_CHOICE && (
+        {type === "MULTIPLE_CHOICE" && (
           <div className="grid gap-4 border-t border-zinc-100 pt-4 sm:grid-cols-2">
             <Field label="Min selections" htmlFor="multi-min">
               <input
@@ -658,7 +653,7 @@ function QuestionOptionsEditor({
     );
   }
 
-  if (type === QuestionType.SLIDER) {
+  if (type === "SLIDER") {
     const slider = options as SliderOptions;
     return (
       <div className="grid gap-4 sm:grid-cols-2">
@@ -723,7 +718,7 @@ function QuestionOptionsEditor({
     );
   }
 
-  if (type === QuestionType.HEATMAP) {
+  if (type === "HEATMAP") {
     const heatmap = options as HeatmapOptions;
     return (
       <div className="grid gap-4">
@@ -770,7 +765,7 @@ function QuestionOptionsEditor({
     );
   }
 
-  if (type === QuestionType.ATTACHMENT) {
+  if (type === "ATTACHMENT") {
     const attachment = options as AttachmentOptions;
     const allowedKinds = attachment.allowedKinds ?? ["image", "video", "document"];
     return (
