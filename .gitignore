@@ -24,6 +24,7 @@
 .DS_Store
 *.pem
 .pgdata
+.uploads/
 .azure/
 
 # Local Azure CLI venv (scripts/azure-bootstrap.sh)

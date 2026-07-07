@@ -95,6 +95,7 @@ export async function updateFormBySlug(
         slug: normalized.slug,
         title: normalized.title,
         description: normalized.description,
+        themeId: normalized.themeId ?? "default",
       },
     });
 

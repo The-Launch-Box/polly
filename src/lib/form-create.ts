@@ -1,4 +1,5 @@
 import { QuestionType } from "@prisma/client";
+import { COMPANY_THEME_IDS, DEFAULT_THEME_ID } from "@/lib/company-themes";
 import type {
   QuestionOptions,
   ScaleOptions,
@@ -7,6 +8,7 @@ import type {
   ShortTextOptions,
   SliderOptions,
   HeatmapOptions,
+  AttachmentOptions,
 } from "@/lib/types";
 
 export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -24,6 +26,7 @@ export type FormInput = {
   slug: string;
   title: string;
   description?: string | null;
+  themeId?: string;
   questions: FormQuestionInput[];
 };
 
@@ -67,6 +70,11 @@ export function defaultOptionsForType(type: QuestionType): QuestionOptions {
         alt: "Click on the image",
         maxClicks: 1,
       };
+    case QuestionType.ATTACHMENT:
+      return {
+        allowedKinds: ["image", "video", "document"],
+        maxSizeMb: 25,
+      };
     default:
       return { placeholder: "" };
   }
@@ -94,6 +102,11 @@ export function validateFormInput(input: FormInput): Record<string, string> {
 
   if (input.description && input.description.length > 1000) {
     errors.description = "Description must be at most 1000 characters.";
+  }
+
+  const themeId = input.themeId?.trim() || DEFAULT_THEME_ID;
+  if (!COMPANY_THEME_IDS.includes(themeId)) {
+    errors.themeId = "Select a valid company theme.";
   }
 
   if (!Array.isArray(input.questions) || input.questions.length === 0) {
@@ -229,6 +242,27 @@ function validateQuestionOptions(
       }
       return null;
     }
+    case QuestionType.ATTACHMENT: {
+      const attachment = options as AttachmentOptions;
+      if (
+        attachment.allowedKinds !== undefined &&
+        (!Array.isArray(attachment.allowedKinds) ||
+          attachment.allowedKinds.length === 0 ||
+          attachment.allowedKinds.some(
+            (kind) =>
+              kind !== "image" && kind !== "video" && kind !== "document",
+          ))
+      ) {
+        return "Choose at least one allowed attachment type.";
+      }
+      if (
+        attachment.maxSizeMb !== undefined &&
+        (!Number.isInteger(attachment.maxSizeMb) || attachment.maxSizeMb < 1)
+      ) {
+        return "Max attachment size must be a positive whole number.";
+      }
+      return null;
+    }
     default:
       return "Unsupported question type.";
   }
@@ -241,6 +275,7 @@ export function normalizeFormInput(input: FormInput): FormInput {
     slug: input.slug.trim(),
     title: input.title.trim(),
     description: input.description?.trim() || null,
+    themeId: input.themeId?.trim() || DEFAULT_THEME_ID,
     questions: input.questions.map((question, index) => ({
       ...(question.id ? { id: question.id } : {}),
       order: index + 1,
@@ -320,6 +355,16 @@ function normalizeQuestionOptions(
         imageUrl: heatmap.imageUrl.trim(),
         ...(heatmap.alt?.trim() ? { alt: heatmap.alt.trim() } : {}),
         maxClicks: heatmap.maxClicks ?? 1,
+      };
+    }
+    case QuestionType.ATTACHMENT: {
+      const attachment = options as AttachmentOptions;
+      return {
+        allowedKinds:
+          attachment.allowedKinds?.filter(
+            (kind) => kind === "image" || kind === "video" || kind === "document",
+          ) ?? ["image", "video", "document"],
+        maxSizeMb: attachment.maxSizeMb ?? 25,
       };
     }
     default:

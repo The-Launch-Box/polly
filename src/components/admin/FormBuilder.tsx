@@ -9,6 +9,9 @@ import {
   type FormInput,
   type FormQuestionInput,
 } from "@/lib/form-create";
+import { formatFileSize } from "@/lib/attachments-shared";
+import { DEFAULT_THEME_ID } from "@/lib/company-themes";
+import { ThemePicker } from "@/components/admin/ThemePicker";
 import type {
   QuestionOptions,
   ScaleOptions,
@@ -17,6 +20,8 @@ import type {
   ShortTextOptions,
   SliderOptions,
   HeatmapOptions,
+  AttachmentOptions,
+  AttachmentKind,
 } from "@/lib/types";
 
 type QuestionDraft = FormQuestionInput & { key: string };
@@ -51,6 +56,13 @@ const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
   [QuestionType.SHORT_TEXT]: "Short text",
   [QuestionType.SLIDER]: "Slider",
   [QuestionType.HEATMAP]: "Heatmap",
+  [QuestionType.ATTACHMENT]: "Attachment",
+};
+
+const ATTACHMENT_KIND_LABELS: Record<AttachmentKind, string> = {
+  image: "Images",
+  video: "Videos",
+  document: "Documents",
 };
 
 type FormBuilderProps = {
@@ -72,6 +84,7 @@ export function FormBuilder({
   const [slugTouched, setSlugTouched] = useState(isEdit);
   const [title, setTitle] = useState(initialData?.title ?? "");
   const [description, setDescription] = useState(initialData?.description ?? "");
+  const [themeId, setThemeId] = useState(initialData?.themeId ?? DEFAULT_THEME_ID);
   const [questions, setQuestions] = useState<QuestionDraft[]>(() =>
     initialData?.questions.length
       ? initialData.questions.map(createQuestionDraftFromExisting)
@@ -148,6 +161,7 @@ export function FormBuilder({
       slug,
       title,
       description: description || null,
+      themeId,
       questions: questions.map((question, index) => ({
         ...(question.id ? { id: question.id } : {}),
         order: index + 1,
@@ -273,6 +287,12 @@ export function FormBuilder({
               placeholder="Optional intro shown above the first question"
             />
           </Field>
+
+          <ThemePicker
+            value={themeId}
+            onChange={setThemeId}
+            error={fieldErrors.themeId}
+          />
         </div>
       </section>
 
@@ -746,6 +766,66 @@ function QuestionOptionsEditor({
             />
           </Field>
         </div>
+      </div>
+    );
+  }
+
+  if (type === QuestionType.ATTACHMENT) {
+    const attachment = options as AttachmentOptions;
+    const allowedKinds = attachment.allowedKinds ?? ["image", "video", "document"];
+    return (
+      <div className="grid gap-4">
+        <Field
+          label="Allowed file types"
+          hint="Respondents can upload one file that matches one of the selected categories."
+        >
+          <div className="flex flex-wrap gap-3">
+            {(["image", "video", "document"] as AttachmentKind[]).map((kind) => {
+              const checked = allowedKinds.includes(kind);
+              return (
+                <label
+                  key={kind}
+                  className="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(event) => {
+                      const next = event.target.checked
+                        ? [...allowedKinds, kind]
+                        : allowedKinds.filter((item) => item !== kind);
+                      onChange({
+                        ...attachment,
+                        allowedKinds: next,
+                      });
+                    }}
+                    className="h-4 w-4 rounded border-zinc-300"
+                  />
+                  {ATTACHMENT_KIND_LABELS[kind]}
+                </label>
+              );
+            })}
+          </div>
+        </Field>
+        <Field
+          label="Max file size (MB)"
+          htmlFor="attachment-max-size"
+          hint={`Current limit: ${formatFileSize((attachment.maxSizeMb ?? 25) * 1024 * 1024)}`}
+        >
+          <input
+            id="attachment-max-size"
+            type="number"
+            min={1}
+            value={attachment.maxSizeMb ?? 25}
+            onChange={(event) =>
+              onChange({
+                ...attachment,
+                maxSizeMb: Number(event.target.value) || 25,
+              })
+            }
+            className={inputClass()}
+          />
+        </Field>
       </div>
     );
   }

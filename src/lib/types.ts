@@ -46,13 +46,28 @@ export type HeatmapOptions = {
   maxClicks?: number;
 };
 
+export type AttachmentKind = "image" | "video" | "document";
+
+export type AttachmentOptions = {
+  allowedKinds?: AttachmentKind[];
+  maxSizeMb?: number;
+};
+
+export type AttachmentAnswer = {
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  downloadUrl: string;
+};
+
 export type QuestionOptions =
   | ScaleOptions
   | SingleChoiceOptions
   | MultipleChoiceOptions
   | ShortTextOptions
   | SliderOptions
-  | HeatmapOptions;
+  | HeatmapOptions
+  | AttachmentOptions;
 
 export type FormQuestion = {
   id: string;
@@ -67,12 +82,14 @@ export type FormPayload = {
   slug: string;
   title: string;
   description: string | null;
+  themeId: string;
   questions: FormQuestion[];
 };
 
 export type AnswerInput = {
   questionId: string;
   value: unknown;
+  durationMs?: number;
 };
 
 export function isScaleOptions(
@@ -162,6 +179,34 @@ export function isHeatmapPoint(value: unknown): value is HeatmapPoint {
   );
 }
 
+export function isAttachmentOptions(
+  options: QuestionOptions | null,
+): options is AttachmentOptions {
+  return (
+    options !== null &&
+    typeof options === "object" &&
+    !("min" in options) &&
+    !("max" in options) &&
+    !("choices" in options) &&
+    !("imageUrl" in options)
+  );
+}
+
+export function isAttachmentAnswer(value: unknown): value is AttachmentAnswer {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "filename" in value &&
+    typeof (value as AttachmentAnswer).filename === "string" &&
+    "mimeType" in value &&
+    typeof (value as AttachmentAnswer).mimeType === "string" &&
+    "sizeBytes" in value &&
+    typeof (value as AttachmentAnswer).sizeBytes === "number" &&
+    "downloadUrl" in value &&
+    typeof (value as AttachmentAnswer).downloadUrl === "string"
+  );
+}
+
 export function formatAnswerValue(value: unknown): string {
   if (value === null || value === undefined) {
     return "—";
@@ -191,6 +236,9 @@ export function formatAnswerValue(value: unknown): string {
   }
   if (isHeatmapPoint(value)) {
     return `(${value.x.toFixed(1)}%, ${value.y.toFixed(1)}%)`;
+  }
+  if (isAttachmentAnswer(value)) {
+    return value.filename;
   }
   if (typeof value === "object" && value !== null && "label" in value) {
     return String((value as { label: string }).label);

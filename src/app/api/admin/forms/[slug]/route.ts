@@ -41,6 +41,7 @@ export async function GET(_request: Request, context: RouteContext) {
     slug: form.slug,
     title: form.title,
     description: form.description,
+    themeId: form.themeId,
     submissionCount: form._count.submissions,
     questions: form.questions.map((question) => ({
       id: question.id,

@@ -65,6 +65,7 @@ export async function POST(request: Request) {
         slug: normalized.slug,
         title: normalized.title,
         description: normalized.description,
+        themeId: normalized.themeId ?? "default",
         questions: {
           create: normalized.questions.map((question) => ({
             order: question.order,
@@ -101,6 +102,10 @@ export async function POST(request: Request) {
       );
     }
 
-    throw error;
+    console.error("Failed to create form:", error);
+    return NextResponse.json(
+      { error: "Could not create form." },
+      { status: 500 },
+    );
   }
 }

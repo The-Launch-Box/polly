@@ -19,6 +19,7 @@ export async function getFormBySlug(slug: string): Promise<FormPayload | null> {
     slug: form.slug,
     title: form.title,
     description: form.description,
+    themeId: form.themeId,
     questions: form.questions.map((question) => ({
       id: question.id,
       order: question.order,
