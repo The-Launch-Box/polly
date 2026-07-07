@@ -9,10 +9,12 @@ import {
   isChoiceListOptions,
   isHeatmapOptions,
   isHeatmapPoint,
+  isNpsOptions,
   isScaleOptions,
   isShortTextOptions,
   isSliderOptions,
 } from "@/lib/types";
+import { validateNpsAnswer } from "@/lib/nps";
 
 type SubmitBody = {
   answers: AnswerInput[];
@@ -197,6 +199,12 @@ function validateAnswer(
       }
       return validateAttachmentFile(value, options);
     }
+    case QuestionType.NPS: {
+      if (!isNpsOptions(options)) {
+        return "Invalid NPS configuration.";
+      }
+      return validateNpsAnswer(value, options, required);
+    }
     default:
       return "Unsupported question type.";
   }
@@ -333,6 +341,31 @@ export async function POST(
               questionId: question.id,
               file: rawValue,
             });
+          }
+          if (question.type === QuestionType.NPS && typeof rawValue === "object" && rawValue) {
+            const npsValue = rawValue as {
+              score: number;
+              path: string;
+              followUpText?: string;
+              contact?: Record<string, string>;
+            };
+            storedValue = {
+              score: npsValue.score,
+              path: npsValue.path,
+              ...(npsValue.followUpText?.trim()
+                ? { followUpText: npsValue.followUpText.trim() }
+                : {}),
+              ...(npsValue.contact
+                ? {
+                    contact: Object.fromEntries(
+                      Object.entries(npsValue.contact).map(([key, entry]) => [
+                        key,
+                        typeof entry === "string" ? entry.trim() : entry,
+                      ]),
+                    ),
+                  }
+                : {}),
+            };
           }
 
           return {

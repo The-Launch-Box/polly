@@ -13,7 +13,14 @@ import type {
   SliderOptions,
   HeatmapOptions,
   AttachmentOptions,
+  NpsOptions,
+  NpsContactField,
 } from "@/lib/types";
+import {
+  DEFAULT_NPS_CLOSING_BODY,
+  DEFAULT_NPS_CLOSING_TITLE,
+  DEFAULT_NPS_FOLLOW_UP_PROMPT,
+} from "@/lib/nps";
 
 export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -82,6 +89,17 @@ export function defaultOptionsForType(type: QuestionType): QuestionOptions {
       return {
         allowedKinds: ["image", "video", "document"],
         maxSizeMb: 25,
+      };
+    case "NPS":
+      return {
+        firmName: "our firm",
+        followUpPrompt: DEFAULT_NPS_FOLLOW_UP_PROMPT,
+        promoterRedirectUrl: "",
+        contactFields: ["name", "email", "company"],
+        closingTitle: DEFAULT_NPS_CLOSING_TITLE,
+        closingBody: DEFAULT_NPS_CLOSING_BODY,
+        closingLinks: [],
+        closingLogoUrl: "",
       };
     default:
       return { placeholder: "" };
@@ -275,6 +293,53 @@ function validateQuestionOptions(
       }
       return null;
     }
+    case "NPS": {
+      const nps = options as NpsOptions;
+      if (!nps.firmName?.trim()) {
+        return "Firm name is required for NPS questions.";
+      }
+      if (nps.promoterRedirectUrl?.trim()) {
+        try {
+          new URL(nps.promoterRedirectUrl.trim());
+        } catch {
+          return "Promoter redirect URL must be a valid URL.";
+        }
+      }
+      if (nps.closingLogoUrl?.trim()) {
+        try {
+          new URL(nps.closingLogoUrl.trim());
+        } catch {
+          return "Closing logo URL must be a valid URL.";
+        }
+      }
+      if (
+        nps.contactFields !== undefined &&
+        (!Array.isArray(nps.contactFields) ||
+          nps.contactFields.length === 0 ||
+          nps.contactFields.some(
+            (field) =>
+              field !== "name" &&
+              field !== "email" &&
+              field !== "company" &&
+              field !== "title",
+          ))
+      ) {
+        return "Choose at least one contact field for promoters.";
+      }
+      if (nps.closingLinks) {
+        for (const link of nps.closingLinks) {
+          if (!link.label?.trim() || !link.url?.trim()) {
+            return "Each closing link needs a label and URL.";
+          }
+          try {
+            new URL(link.url.trim());
+          } catch {
+            return "Closing link URLs must be valid.";
+          }
+        }
+      }
+      return null;
+    }
     default:
       return "Unsupported question type.";
   }
@@ -380,7 +445,36 @@ function normalizeQuestionOptions(
           attachment.allowedKinds?.filter(
             (kind) => kind === "image" || kind === "video" || kind === "document",
           ) ?? ["image", "video", "document"],
-        maxSizeMb: attachment.maxSizeMb ?? 25,
+        maxSizeMb: Math.max(1, Math.round(attachment.maxSizeMb ?? 25)),
+      };
+    }
+    case "NPS": {
+      const nps = options as NpsOptions;
+      const contactFields = (nps.contactFields ?? ["name", "email", "company"]).filter(
+        (field): field is NpsContactField =>
+          field === "name" ||
+          field === "email" ||
+          field === "company" ||
+          field === "title",
+      );
+      const closingLinks = (nps.closingLinks ?? [])
+        .map((link) => ({
+          label: link.label.trim(),
+          url: link.url.trim(),
+        }))
+        .filter((link) => link.label && link.url);
+
+      return {
+        firmName: nps.firmName.trim(),
+        followUpPrompt: nps.followUpPrompt?.trim() || DEFAULT_NPS_FOLLOW_UP_PROMPT,
+        promoterRedirectUrl: nps.promoterRedirectUrl?.trim() || "",
+        contactFields: contactFields.length > 0 ? contactFields : ["name", "email"],
+        closingTitle: nps.closingTitle?.trim() || DEFAULT_NPS_CLOSING_TITLE,
+        closingBody: nps.closingBody?.trim() || DEFAULT_NPS_CLOSING_BODY,
+        closingLinks,
+        ...(nps.closingLogoUrl?.trim()
+          ? { closingLogoUrl: nps.closingLogoUrl.trim() }
+          : {}),
       };
     }
     default:

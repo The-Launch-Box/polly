@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { FormPayload } from "@/lib/types";
-import { isHeatmapPoint } from "@/lib/types";
+import { NpsFlow } from "@/components/NpsFlow";
+import type { FormPayload, NpsAnswer } from "@/lib/types";
+import { isHeatmapPoint, isNpsOptions } from "@/lib/types";
 import { ProgressBar } from "@/components/ProgressBar";
 import { QuestionStep } from "@/components/QuestionStep";
 
@@ -26,6 +27,8 @@ export function FormPlayer({ form }: FormPlayerProps) {
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [npsScore, setNpsScore] = useState<number | null>(null);
+  const [npsFollowUpText, setNpsFollowUpText] = useState("");
   const transitionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const surveyStartedAt = useRef(Date.now());
   const questionStartedAt = useRef(Date.now());
@@ -34,6 +37,7 @@ export function FormPlayer({ form }: FormPlayerProps) {
   const questions = form.questions;
   const currentQuestion = questions[displayIndex];
   const isLast = currentIndex === questions.length - 1;
+  const isNpsQuestion = currentQuestion?.type === "NPS";
   const progress = ((currentIndex + 1) / questions.length) * 100;
   const isTransitioning = slidePhase !== "idle";
 
@@ -114,6 +118,11 @@ export function FormPlayer({ form }: FormPlayerProps) {
     if (!question) {
       return null;
     }
+
+    if (question.type === "NPS") {
+      return null;
+    }
+
     const value = answers[question.id];
     if (!question.required) {
       return null;
@@ -151,6 +160,146 @@ export function FormPlayer({ form }: FormPlayerProps) {
     return null;
   }
 
+  async function submitSurvey(
+    nextAnswers: Record<string, unknown>,
+  ): Promise<{ ok: true } | { ok: false; error: string }> {
+    const lastQuestion = questions[currentIndex];
+    if (lastQuestion) {
+      finalizeQuestionDuration(lastQuestion.id);
+    }
+
+    const answerPayload = Object.entries(nextAnswers).map(([questionId, value]) => ({
+      questionId,
+      value: value instanceof File ? null : value,
+      durationMs: durationsRef.current[questionId],
+    }));
+    const totalDurationMs = Date.now() - surveyStartedAt.current;
+    const hasFiles = Object.values(nextAnswers).some((value) => value instanceof File);
+
+    const response = await fetch(`/api/forms/${form.slug}/submit`, {
+      method: "POST",
+      ...(hasFiles
+        ? {
+            body: (() => {
+              const formData = new FormData();
+              formData.append(
+                "payload",
+                JSON.stringify({
+                  totalDurationMs,
+                  answers: answerPayload,
+                }),
+              );
+              for (const [questionId, value] of Object.entries(nextAnswers)) {
+                if (value instanceof File) {
+                  formData.append(`attachment:${questionId}`, value);
+                }
+              }
+              return formData;
+            })(),
+          }
+        : {
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              totalDurationMs,
+              answers: answerPayload,
+            }),
+          }),
+    });
+
+    const raw = await response.text();
+    let data: { error?: string } = {};
+    try {
+      data = raw ? (JSON.parse(raw) as typeof data) : {};
+    } catch {
+      return { ok: false, error: "Submission failed. Please try again." };
+    }
+
+    if (!response.ok) {
+      return {
+        ok: false,
+        error: data.error ?? "Submission failed. Please try again.",
+      };
+    }
+
+    return { ok: true };
+  }
+
+  async function handleNpsPromoterSubmit(
+    answer: NpsAnswer,
+  ): Promise<{ redirectUrl?: string }> {
+    if (!currentQuestion) {
+      return {};
+    }
+
+    const nextAnswers = { ...answers, [currentQuestion.id]: answer };
+    setAnswers(nextAnswers);
+
+    if (!isLast) {
+      startSlide(currentIndex + 1);
+      return {};
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const result = await submitSurvey(nextAnswers);
+      if (!result.ok) {
+        setError(result.error);
+        return {};
+      }
+
+      const options = isNpsOptions(currentQuestion.options)
+        ? currentQuestion.options
+        : null;
+      const redirectUrl = options?.promoterRedirectUrl?.trim();
+      if (redirectUrl) {
+        window.location.href = redirectUrl;
+      } else {
+        router.push(`/q/${form.slug}/thank-you`);
+      }
+
+      return { redirectUrl };
+    } catch {
+      setError("Network error. Please try again.");
+      return {};
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleNpsDetractorComplete(answer: NpsAnswer): Promise<boolean> {
+    if (!currentQuestion) {
+      return false;
+    }
+
+    const nextAnswers = { ...answers, [currentQuestion.id]: answer };
+    setAnswers(nextAnswers);
+
+    if (!isLast) {
+      startSlide(currentIndex + 1);
+      return true;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const result = await submitSurvey(nextAnswers);
+      if (!result.ok) {
+        setError(result.error);
+        return false;
+      }
+
+      return true;
+    } catch {
+      setError("Network error. Please try again.");
+      return false;
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   async function handleNext() {
     const validationError = validateCurrent();
     if (validationError) {
@@ -166,61 +315,10 @@ export function FormPlayer({ form }: FormPlayerProps) {
     setIsSubmitting(true);
     setError(null);
 
-    const lastQuestion = questions[currentIndex];
-    if (lastQuestion) {
-      finalizeQuestionDuration(lastQuestion.id);
-    }
-
     try {
-      const answerPayload = Object.entries(answers).map(([questionId, value]) => ({
-        questionId,
-        value: value instanceof File ? null : value,
-        durationMs: durationsRef.current[questionId],
-      }));
-      const totalDurationMs = Date.now() - surveyStartedAt.current;
-      const hasFiles = Object.values(answers).some((value) => value instanceof File);
-
-      const response = await fetch(`/api/forms/${form.slug}/submit`, {
-        method: "POST",
-        ...(hasFiles
-          ? {
-              body: (() => {
-                const formData = new FormData();
-                formData.append(
-                  "payload",
-                  JSON.stringify({
-                    totalDurationMs,
-                    answers: answerPayload,
-                  }),
-                );
-                for (const [questionId, value] of Object.entries(answers)) {
-                  if (value instanceof File) {
-                    formData.append(`attachment:${questionId}`, value);
-                  }
-                }
-                return formData;
-              })(),
-            }
-          : {
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                totalDurationMs,
-                answers: answerPayload,
-              }),
-            }),
-      });
-
-      const raw = await response.text();
-      let data: { error?: string; submissionId?: string } = {};
-      try {
-        data = raw ? (JSON.parse(raw) as typeof data) : {};
-      } catch {
-        setError("Submission failed. Please try again.");
-        return;
-      }
-
-      if (!response.ok) {
-        setError(data.error ?? "Submission failed. Please try again.");
+      const result = await submitSurvey(answers);
+      if (!result.ok) {
+        setError(result.error);
         return;
       }
 
@@ -268,11 +366,26 @@ export function FormPlayer({ form }: FormPlayerProps) {
 
       <div className="flex flex-1 flex-col overflow-hidden">
         <div key={displayIndex} className={slideClass}>
-          <QuestionStep
-            question={currentQuestion}
-            value={currentValue}
-            onChange={setCurrentAnswer}
-          />
+          {isNpsQuestion ? (
+            <NpsFlow
+              question={currentQuestion}
+              onBack={handleBack}
+              canGoBack={currentIndex > 0}
+              onPromoterSubmit={handleNpsPromoterSubmit}
+              onDetractorComplete={handleNpsDetractorComplete}
+              isSubmitting={isSubmitting}
+              score={npsScore}
+              followUpText={npsFollowUpText}
+              onScoreChange={setNpsScore}
+              onFollowUpTextChange={setNpsFollowUpText}
+            />
+          ) : (
+            <QuestionStep
+              question={currentQuestion}
+              value={currentValue}
+              onChange={setCurrentAnswer}
+            />
+          )}
         </div>
 
         {error && (
@@ -281,29 +394,31 @@ export function FormPlayer({ form }: FormPlayerProps) {
           </p>
         )}
 
-        <div className="mt-auto flex items-center justify-between gap-4 pt-10">
-          <button
-            type="button"
-            onClick={handleBack}
-            disabled={currentIndex === 0 || isSubmitting || isTransitioning}
-            className="rounded-lg px-4 py-2 text-sm font-medium transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
-            style={{ color: "var(--theme-text-muted)" }}
-          >
-            Back
-          </button>
-          <button
-            type="button"
-            onClick={handleNext}
-            disabled={isSubmitting || isTransitioning}
-            className="rounded-lg px-6 py-2.5 text-sm font-medium transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-            style={{
-              backgroundColor: "var(--theme-primary)",
-              color: "var(--theme-primary-foreground)",
-            }}
-          >
-            {isSubmitting ? "Submitting..." : isLast ? "Submit" : "Next"}
-          </button>
-        </div>
+        {!isNpsQuestion && (
+          <div className="mt-auto flex items-center justify-between gap-4 pt-10">
+            <button
+              type="button"
+              onClick={handleBack}
+              disabled={currentIndex === 0 || isSubmitting || isTransitioning}
+              className="rounded-lg px-4 py-2 text-sm font-medium transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+              style={{ color: "var(--theme-text-muted)" }}
+            >
+              Back
+            </button>
+            <button
+              type="button"
+              onClick={handleNext}
+              disabled={isSubmitting || isTransitioning}
+              className="rounded-lg px-6 py-2.5 text-sm font-medium transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+              style={{
+                backgroundColor: "var(--theme-primary)",
+                color: "var(--theme-primary-foreground)",
+              }}
+            >
+              {isSubmitting ? "Submitting..." : isLast ? "Submit" : "Next"}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

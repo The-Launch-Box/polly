@@ -28,7 +28,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return true;
       }
 
-      return !!auth?.user;
+      if (!auth?.user) {
+        if (pathname.startsWith("/api/admin")) {
+          return Response.json({ error: "Unauthorized." }, { status: 401 });
+        }
+
+        return false;
+      }
+
+      return true;
     },
   },
 });

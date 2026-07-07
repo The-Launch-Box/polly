@@ -255,6 +255,36 @@ function summarizeQuestion(
     return { summary: `${answers.length} attachment response(s)` };
   }
 
+  if (question.type === QuestionType.NPS) {
+    const scores = answers
+      .map((answer) =>
+        typeof answer.value === "object" &&
+        answer.value !== null &&
+        "score" in answer.value
+          ? Number((answer.value as { score: number }).score)
+          : null,
+      )
+      .filter((score): score is number => score !== null && !Number.isNaN(score));
+
+    if (scores.length === 0) {
+      return { summary: "No NPS scores yet" };
+    }
+
+    const avg = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+    const promoters = scores.filter((score) => score === 10).length;
+    const detractors = scores.filter((score) => score <= 9).length;
+
+    return {
+      summary: `Average: ${avg.toFixed(1)} · Promoters: ${promoters} · Follow-ups: ${detractors}`,
+      numericAvg: avg,
+      numericDistribution: scores.reduce<Record<string, number>>((acc, score) => {
+        const key = String(score);
+        acc[key] = (acc[key] ?? 0) + 1;
+        return acc;
+      }, {}),
+    };
+  }
+
   return { summary: `${answers.length} response(s)` };
 }
 

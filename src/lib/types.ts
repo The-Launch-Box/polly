@@ -60,6 +60,31 @@ export type AttachmentAnswer = {
   downloadUrl: string;
 };
 
+export type NpsContactField = "name" | "email" | "company" | "title";
+
+export type NpsLink = {
+  label: string;
+  url: string;
+};
+
+export type NpsOptions = {
+  firmName: string;
+  followUpPrompt?: string;
+  promoterRedirectUrl?: string;
+  contactFields?: NpsContactField[];
+  closingLogoUrl?: string;
+  closingTitle?: string;
+  closingBody?: string;
+  closingLinks?: NpsLink[];
+};
+
+export type NpsAnswer = {
+  score: number;
+  path: "promoter" | "detractor";
+  followUpText?: string;
+  contact?: Partial<Record<NpsContactField, string>>;
+};
+
 export type QuestionOptions =
   | ScaleOptions
   | SingleChoiceOptions
@@ -67,7 +92,8 @@ export type QuestionOptions =
   | ShortTextOptions
   | SliderOptions
   | HeatmapOptions
-  | AttachmentOptions;
+  | AttachmentOptions
+  | NpsOptions;
 
 export type FormQuestion = {
   id: string;
@@ -185,10 +211,28 @@ export function isAttachmentOptions(
   return (
     options !== null &&
     typeof options === "object" &&
-    !("min" in options) &&
-    !("max" in options) &&
-    !("choices" in options) &&
-    !("imageUrl" in options)
+    ("allowedKinds" in options || "maxSizeMb" in options)
+  );
+}
+
+export function isNpsOptions(
+  options: QuestionOptions | null,
+): options is NpsOptions {
+  return (
+    options !== null &&
+    typeof options === "object" &&
+    "firmName" in options &&
+    typeof (options as NpsOptions).firmName === "string"
+  );
+}
+
+export function isNpsAnswer(value: unknown): value is NpsAnswer {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as NpsAnswer).score === "number" &&
+    ((value as NpsAnswer).path === "promoter" ||
+      (value as NpsAnswer).path === "detractor")
   );
 }
 
@@ -239,6 +283,21 @@ export function formatAnswerValue(value: unknown): string {
   }
   if (isAttachmentAnswer(value)) {
     return value.filename;
+  }
+  if (isNpsAnswer(value)) {
+    const parts = [`Score: ${value.score}/10`];
+    if (value.followUpText) {
+      parts.push(`Feedback: ${value.followUpText}`);
+    }
+    if (value.contact) {
+      const contactParts = Object.entries(value.contact)
+        .filter(([, entry]) => entry)
+        .map(([key, entry]) => `${key}: ${entry}`);
+      if (contactParts.length > 0) {
+        parts.push(contactParts.join("; "));
+      }
+    }
+    return parts.join(" · ");
   }
   if (typeof value === "object" && value !== null && "label" in value) {
     return String((value as { label: string }).label);

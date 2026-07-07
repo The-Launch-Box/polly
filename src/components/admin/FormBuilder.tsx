@@ -13,9 +13,14 @@ import { formatFileSize } from "@/lib/attachments-shared";
 import { DEFAULT_THEME_ID } from "@/lib/company-themes";
 import {
   asQuestionType,
+  isQuestionTypeValue,
   QUESTION_TYPE_LABELS,
   QUESTION_TYPE_VALUES,
 } from "@/lib/question-types";
+import {
+  getDefaultNpsPrompt,
+  NPS_CONTACT_FIELD_LABELS,
+} from "@/lib/nps";
 import { ThemePicker } from "@/components/admin/ThemePicker";
 import type {
   QuestionOptions,
@@ -27,6 +32,9 @@ import type {
   HeatmapOptions,
   AttachmentOptions,
   AttachmentKind,
+  NpsOptions,
+  NpsContactField,
+  NpsLink,
 } from "@/lib/types";
 
 type QuestionDraft = FormQuestionInput & { key: string };
@@ -111,15 +119,25 @@ export function FormBuilder({
 
   function changeQuestionType(key: string, type: QuestionType) {
     setQuestions((current) =>
-      current.map((question) =>
-        question.key === key
-          ? {
-              ...question,
-              type,
-              options: defaultOptionsForType(type),
-            }
-          : question,
-      ),
+      current.map((question) => {
+        if (question.key !== key) {
+          return question;
+        }
+
+        const options = defaultOptionsForType(type);
+        return {
+          ...question,
+          type,
+          options,
+          ...(type === "NPS" && "firmName" in options
+            ? {
+                prompt: getDefaultNpsPrompt(
+                  String((options as NpsOptions).firmName),
+                ),
+              }
+            : {}),
+        };
+      }),
     );
   }
 
@@ -157,14 +175,22 @@ export function FormBuilder({
       title,
       description: description || null,
       themeId,
-      questions: questions.map((question, index) => ({
-        ...(question.id ? { id: question.id } : {}),
-        order: index + 1,
-        type: question.type,
-        prompt: question.prompt,
-        required: question.required,
-        options: question.options,
-      })),
+      questions: questions.map((question, index) => {
+        if (!isQuestionTypeValue(question.type)) {
+          throw new Error(
+            `Question ${index + 1} has an invalid type. Re-select its type and try again.`,
+          );
+        }
+
+        return {
+          ...(question.id ? { id: question.id } : {}),
+          order: index + 1,
+          type: question.type,
+          prompt: question.prompt,
+          required: question.required,
+          options: question.options,
+        };
+      }),
     };
 
     try {
@@ -173,15 +199,28 @@ export function FormBuilder({
         {
           method: isEdit ? "PATCH" : "POST",
           headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
           body: JSON.stringify(payload),
         },
       );
 
-      const data = (await response.json()) as {
+      const rawBody = await response.text();
+      let data: {
         error?: string;
         errors?: Record<string, string>;
         slug?: string;
-      };
+      } = {};
+
+      if (rawBody) {
+        try {
+          data = JSON.parse(rawBody) as typeof data;
+        } catch {
+          setError(
+            `Server returned ${response.status} without a JSON response. Restart the dev server and try again.`,
+          );
+          return;
+        }
+      }
 
       if (!response.ok) {
         if (data.errors) {
@@ -196,11 +235,13 @@ export function FormBuilder({
 
       router.push(isEdit ? "/admin/forms" : `/q/${data.slug}`);
       router.refresh();
-    } catch {
+    } catch (error) {
       setError(
-        isEdit
-          ? "Could not save changes. Please try again."
-          : "Could not create form. Please try again.",
+        error instanceof Error
+          ? error.message
+          : isEdit
+            ? "Could not save changes. Please try again."
+            : "Could not create form. Please try again.",
       );
     } finally {
       setIsSubmitting(false);
@@ -815,12 +856,193 @@ function QuestionOptionsEditor({
             onChange={(event) =>
               onChange({
                 ...attachment,
-                maxSizeMb: Number(event.target.value) || 25,
+                maxSizeMb: Math.max(1, Math.round(Number(event.target.value) || 25)),
               })
             }
             className={inputClass()}
           />
         </Field>
+      </div>
+    );
+  }
+
+  if (type === "NPS") {
+    const nps = options as NpsOptions;
+    const contactFields = nps.contactFields ?? ["name", "email", "company"];
+    const closingLinks = nps.closingLinks ?? [];
+
+    return (
+      <div className="grid gap-6">
+        <Field
+          label="Firm name"
+          htmlFor="nps-firm-name"
+          hint="Used in the default NPS question text. You can still customize the prompt above."
+        >
+          <input
+            id="nps-firm-name"
+            value={nps.firmName}
+            onChange={(event) =>
+              onChange({ ...nps, firmName: event.target.value })
+            }
+            className={inputClass()}
+            placeholder="Blue Trail Digital"
+          />
+        </Field>
+
+        <Field
+          label="Promoter redirect URL"
+          htmlFor="nps-promoter-url"
+          hint="Respondents who score 10 are sent here after submitting contact info (e.g. your G2 review page)."
+        >
+          <input
+            id="nps-promoter-url"
+            type="url"
+            value={nps.promoterRedirectUrl ?? ""}
+            onChange={(event) =>
+              onChange({ ...nps, promoterRedirectUrl: event.target.value })
+            }
+            className={inputClass()}
+            placeholder="https://www.g2.com/products/..."
+          />
+        </Field>
+
+        <Field
+          label="Contact fields for score 10"
+          hint="Collected before redirecting promoters to leave a review."
+        >
+          <div className="flex flex-wrap gap-3">
+            {(["name", "email", "company", "title"] as NpsContactField[]).map(
+              (field) => {
+                const checked = contactFields.includes(field);
+                return (
+                  <label
+                    key={field}
+                    className="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(event) => {
+                        const next = event.target.checked
+                          ? [...contactFields, field]
+                          : contactFields.filter((item) => item !== field);
+                        onChange({ ...nps, contactFields: next });
+                      }}
+                      className="h-4 w-4 rounded border-zinc-300"
+                    />
+                    {NPS_CONTACT_FIELD_LABELS[field]}
+                  </label>
+                );
+              },
+            )}
+          </div>
+        </Field>
+
+        <Field label="Follow-up prompt (scores 0–9)" htmlFor="nps-follow-up">
+          <textarea
+            id="nps-follow-up"
+            value={nps.followUpPrompt ?? ""}
+            onChange={(event) =>
+              onChange({ ...nps, followUpPrompt: event.target.value })
+            }
+            rows={3}
+            className={inputClass()}
+          />
+        </Field>
+
+        <div className="rounded-xl border border-zinc-200 p-4">
+          <h4 className="text-sm font-semibold text-zinc-900">
+            Closing slide (scores 0–9)
+          </h4>
+          <p className="mt-1 text-sm text-zinc-500">
+            Shown after follow-up feedback is submitted.
+          </p>
+          <div className="mt-4 grid gap-4">
+            <Field label="Logo image URL" htmlFor="nps-closing-logo">
+              <input
+                id="nps-closing-logo"
+                type="url"
+                value={nps.closingLogoUrl ?? ""}
+                onChange={(event) =>
+                  onChange({ ...nps, closingLogoUrl: event.target.value })
+                }
+                className={inputClass()}
+                placeholder="https://..."
+              />
+            </Field>
+            <Field label="Closing title" htmlFor="nps-closing-title">
+              <input
+                id="nps-closing-title"
+                value={nps.closingTitle ?? ""}
+                onChange={(event) =>
+                  onChange({ ...nps, closingTitle: event.target.value })
+                }
+                className={inputClass()}
+              />
+            </Field>
+            <Field label="Closing message" htmlFor="nps-closing-body">
+              <textarea
+                id="nps-closing-body"
+                value={nps.closingBody ?? ""}
+                onChange={(event) =>
+                  onChange({ ...nps, closingBody: event.target.value })
+                }
+                rows={4}
+                className={inputClass()}
+              />
+            </Field>
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-zinc-700">Links</p>
+              {closingLinks.map((link, index) => (
+                <div key={index} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                  <input
+                    value={link.label}
+                    onChange={(event) => {
+                      const next = [...closingLinks];
+                      next[index] = { ...next[index], label: event.target.value };
+                      onChange({ ...nps, closingLinks: next });
+                    }}
+                    className={inputClass()}
+                    placeholder="LinkedIn"
+                  />
+                  <input
+                    value={link.url}
+                    onChange={(event) => {
+                      const next = [...closingLinks];
+                      next[index] = { ...next[index], url: event.target.value };
+                      onChange({ ...nps, closingLinks: next });
+                    }}
+                    className={inputClass()}
+                    placeholder="https://..."
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = closingLinks.filter((_, i) => i !== index);
+                      onChange({ ...nps, closingLinks: next });
+                    }}
+                    className="rounded border border-zinc-200 px-3 py-2 text-sm text-zinc-600"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => {
+                  const next: NpsLink[] = [
+                    ...closingLinks,
+                    { label: "", url: "" },
+                  ];
+                  onChange({ ...nps, closingLinks: next });
+                }}
+                className="text-sm font-medium text-zinc-700 underline"
+              >
+                Add link
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

@@ -96,6 +96,10 @@ export async function PATCH(request: Request, context: RouteContext) {
       return NextResponse.json({ error: error.message }, { status });
     }
 
-    throw error;
+    console.error("Form update failed:", error);
+    return NextResponse.json(
+      { error: "Could not save changes." },
+      { status: 500 },
+    );
   }
 }
