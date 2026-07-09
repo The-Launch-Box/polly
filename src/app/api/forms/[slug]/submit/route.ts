@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { QuestionType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { fireWebhooks } from "@/lib/webhooks";
 import type { AnswerInput, MultipleChoiceOptions, QuestionOptions } from "@/lib/types";
 import {
   isChoiceListOptions,
@@ -271,6 +272,8 @@ export async function POST(
 
     return created;
   });
+
+  await fireWebhooks(form.id, slug, submission.id, submission.submittedAt);
 
   return NextResponse.json({
     submissionId: submission.id,

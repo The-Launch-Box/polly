@@ -16,6 +16,17 @@ model Form {
   updatedAt   DateTime     @updatedAt
   questions   Question[]
   submissions Submission[]
+  webhooks    Webhook[]
+}
+
+model Webhook {
+  id             String  @id @default(cuid())
+  formId         String
+  form           Form    @relation(fields: [formId], references: [id], onDelete: Cascade)
+  url            String
+  includeAnswers Boolean @default(false)
+
+  @@index([formId])
 }
 
 enum QuestionType {
