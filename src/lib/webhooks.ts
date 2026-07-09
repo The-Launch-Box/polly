@@ -9,7 +9,9 @@ export async function fireWebhooks(
   const webhooks = await prisma.webhook.findMany({ where: { formId } });
   if (webhooks.length === 0) return;
 
-  const needsAnswers = webhooks.some((w) => w.includeAnswers);
+  const isHttps = (url: string) => new URL(url).protocol === "https:";
+
+  const needsAnswers = webhooks.some((w) => w.includeAnswers && isHttps(w.url));
   const answers = needsAnswers
     ? await prisma.answer.findMany({ where: { submissionId } })
     : [];
@@ -24,7 +26,8 @@ export async function fireWebhooks(
 
   await Promise.allSettled(
     webhooks.map((webhook) => {
-      const payload = webhook.includeAnswers
+      const canSendAnswers = webhook.includeAnswers && isHttps(webhook.url);
+      const payload = canSendAnswers
         ? { ...basePayload, answers: answers.map((a) => ({ questionId: a.questionId, value: a.value })) }
         : basePayload;
       return fetch(webhook.url, {
