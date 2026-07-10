@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 import { normalizeFormInput, type UpdateFormInput } from "@/lib/form-create";
 import { prisma } from "@/lib/prisma";
 

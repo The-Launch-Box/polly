@@ -1,4 +1,4 @@
-import type { QuestionType } from "@prisma/client";
+import type { QuestionType } from "@/generated/prisma/enums";
 
 export const QUESTION_TYPE_VALUES = [
   "SCALE",

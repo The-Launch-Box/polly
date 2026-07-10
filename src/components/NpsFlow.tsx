@@ -58,7 +58,8 @@ export function NpsFlow({
   }, [options, question.prompt]);
 
   const contactFields = useMemo(
-    () => (options ? getNpsContactFields(options) : ["name", "email"]),
+    () =>
+      options ? getNpsContactFields(options) : (["name", "email"] as NpsContactField[]),
     [options],
   );
 

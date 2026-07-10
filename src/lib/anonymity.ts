@@ -1,4 +1,4 @@
-import { QuestionType } from "@prisma/client";
+import { QuestionType } from "@/generated/prisma/enums";
 import type { NpsAnswer } from "@/lib/types";
 import { isNpsAnswer } from "@/lib/types";
 

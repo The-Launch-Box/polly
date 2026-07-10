@@ -1,4 +1,4 @@
-import { QuestionType } from "@prisma/client";
+import { QuestionType } from "@/generated/prisma/enums";
 import { COMPANY_THEME_IDS, DEFAULT_THEME_ID } from "@/lib/company-themes";
 import {
   isQuestionTypeValue,

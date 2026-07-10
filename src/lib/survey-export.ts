@@ -1,4 +1,4 @@
-import { QuestionType } from "@prisma/client";
+import { QuestionType } from "@/generated/prisma/enums";
 import { rowsToCsv } from "@/lib/csv";
 import {
   buildSurveyInsights,

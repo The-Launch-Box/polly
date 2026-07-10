@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { QuestionType } from "@prisma/client";
+import { QuestionType } from "@/generated/prisma/enums";
 import { validateAttachmentFile } from "@/lib/attachments-shared";
 import { saveAttachmentFile } from "@/lib/attachments";
 import { prisma } from "@/lib/prisma";

@@ -1,4 +1,4 @@
-import { QuestionType } from "@prisma/client";
+import { QuestionType } from "@/generated/prisma/enums";
 import {
   formatAnswerValue,
   isChoiceListOptions,
@@ -274,14 +274,22 @@ function summarizeQuestion(
     const promoters = scores.filter((score) => score === 10).length;
     const detractors = scores.filter((score) => score <= 9).length;
 
+    const counts = new Map<number, number>();
+    for (const score of scores) {
+      counts.set(score, (counts.get(score) ?? 0) + 1);
+    }
+    const numericDistribution = [...counts.entries()]
+      .sort(([a], [b]) => a - b)
+      .map(([value, count]) => ({
+        value,
+        label: String(value),
+        count,
+      }));
+
     return {
       summary: `Average: ${avg.toFixed(1)} · Promoters: ${promoters} · Follow-ups: ${detractors}`,
       numericAvg: avg,
-      numericDistribution: scores.reduce<Record<string, number>>((acc, score) => {
-        const key = String(score);
-        acc[key] = (acc[key] ?? 0) + 1;
-        return acc;
-      }, {}),
+      numericDistribution,
     };
   }
 
