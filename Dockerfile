@@ -18,7 +18,16 @@ RUN npx prisma generate
 # next.config.ts sets output: 'standalone'
 RUN npm run build
 
-# ── Stage 3: runtime ───────────────────────────────────────────────────────────
+# ── Stage 3: production node_modules (complete tree for Prisma CLI migrate/seed)
+FROM node:20-alpine AS prod-deps
+WORKDIR /app
+
+COPY package.json package-lock.json prisma.config.ts ./
+COPY prisma ./prisma
+# Run postinstall (prisma generate) so engines/binaries are present for migrate.
+RUN npm ci --omit=dev
+
+# ── Stage 4: runtime ───────────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
 WORKDIR /app
 
@@ -31,28 +40,26 @@ ENV HOSTNAME="0.0.0.0"
 RUN addgroup --system --gid 1001 nodejs && \
     adduser  --system --uid 1001 nextjs
 
-# Copy standalone output (includes only required node_modules)
+# Copy standalone app output (server.js + traced assets)
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static    ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public          ./public
 
-# Copy Prisma schema + migrations + CLI for migrate/seed (pre-deploy / Container Apps Job)
+# Overlay a full production node_modules so `prisma` / `tsx` and their
+# transitive deps (e.g. effect, c12) are available for pre-deploy migrate/seed.
+COPY --from=prod-deps --chown=nextjs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
+
+# Prisma schema, config, migrations, and generated client for migrate/seed
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/src/generated ./src/generated
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/tsx ./node_modules/tsx
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/esbuild ./node_modules/esbuild
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/get-tsconfig ./node_modules/get-tsconfig
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/resolve-pkg-maps ./node_modules/resolve-pkg-maps
-# .bin holds the `prisma` / `tsx` executables that npx resolves
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.bin ./node_modules/.bin
 
 USER nextjs
 
 EXPOSE 3000
 
 # Default command: run the Next.js server
-# The migrate Container Apps Job overrides this with: npx prisma migrate deploy
+# The migrate Container Apps Job / Railway preDeploy overrides with:
+#   npx prisma migrate deploy && npx prisma db seed
 CMD ["node", "server.js"]
