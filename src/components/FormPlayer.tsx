@@ -28,6 +28,9 @@ export function FormPlayer({ form }: FormPlayerProps) {
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [questionErrors, setQuestionErrors] = useState<boolean[]>(() =>
+    form.questions.map(() => false),
+  );
   const [npsScore, setNpsScore] = useState<number | null>(null);
   const [npsFollowUpText, setNpsFollowUpText] = useState("");
   const transitionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -112,17 +115,17 @@ export function FormPlayer({ form }: FormPlayerProps) {
     }
     setAnswers((prev) => ({ ...prev, [currentQuestion.id]: value }));
     setError(null);
+    setQuestionErrors((prev) => {
+      if (!prev[currentIndex]) return prev;
+      const next = [...prev];
+      next[currentIndex] = false;
+      return next;
+    });
   }
 
-  function validateCurrent(): string | null {
-    const question = questions[currentIndex];
-    if (!question) {
-      return null;
-    }
-
-    if (question.type === "NPS") {
-      return null;
-    }
+  function validateQuestion(questionIndex: number): string | null {
+    const question = questions[questionIndex];
+    if (!question || question.type === "NPS") return null;
 
     const value = answers[question.id];
 
@@ -130,9 +133,8 @@ export function FormPlayer({ form }: FormPlayerProps) {
       return validateContactInfoAnswer(value, question.required, form.anonymous);
     }
 
-    if (!question.required) {
-      return null;
-    }
+    if (!question.required) return null;
+
     if (
       value === undefined ||
       value === null ||
@@ -148,22 +150,18 @@ export function FormPlayer({ form }: FormPlayerProps) {
       return "Please upload a file before continuing.";
     }
     if (question.type === "HEATMAP" && !isHeatmapPoint(value)) {
-      if (
-        !Array.isArray(value) ||
-        value.length === 0 ||
-        !value.every(isHeatmapPoint)
-      ) {
+      if (!Array.isArray(value) || value.length === 0 || !value.every(isHeatmapPoint)) {
         return "Please click on the image before continuing.";
       }
     }
-    if (
-      question.type === "MULTIPLE_CHOICE" &&
-      Array.isArray(value) &&
-      value.length === 0
-    ) {
+    if (question.type === "MULTIPLE_CHOICE" && Array.isArray(value) && value.length === 0) {
       return "Please select at least one option before continuing.";
     }
     return null;
+  }
+
+  function validateCurrent(): string | null {
+    return validateQuestion(currentIndex);
   }
 
   async function submitSurvey(
@@ -309,14 +307,32 @@ export function FormPlayer({ form }: FormPlayerProps) {
   }
 
   async function handleNext() {
-    const validationError = validateCurrent();
-    if (validationError) {
-      setError(validationError);
+    if (!isLast) {
+      const validationError = validateCurrent();
+      if (validationError) {
+        setError(validationError);
+        setQuestionErrors((prev) => {
+          const next = [...prev];
+          next[currentIndex] = true;
+          return next;
+        });
+        return;
+      }
+      startSlide(currentIndex + 1);
       return;
     }
 
-    if (!isLast) {
-      startSlide(currentIndex + 1);
+    // On the last question validate every question at once — catches required
+    // questions the user skipped by dragging the progress bar. The current
+    // question is included so its specific message is shown when it's the blocker.
+    const allErrors = questions.map((_, i) => validateQuestion(i) !== null);
+    if (allErrors.some(Boolean)) {
+      setQuestionErrors(allErrors);
+      setError(
+        allErrors[currentIndex]
+          ? (validateQuestion(currentIndex) ?? "Please answer this question before continuing.")
+          : "Please go back and answer all required questions before submitting.",
+      );
       return;
     }
 
@@ -369,7 +385,14 @@ export function FormPlayer({ form }: FormPlayerProps) {
         >
           Question {currentIndex + 1} of {questions.length}
         </p>
-        <ProgressBar value={progress} />
+        <ProgressBar
+          value={progress}
+          total={questions.length}
+          currentIndex={currentIndex}
+          onSeek={startSlide}
+          disabled={isTransitioning || isSubmitting}
+          questionErrors={questionErrors}
+        />
       </div>
 
       <div className="flex flex-1 flex-col overflow-hidden">
