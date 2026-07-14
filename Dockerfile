@@ -50,10 +50,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/public          ./public
 COPY --from=prod-deps --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 
-# Prisma schema, config, migrations, and generated client for migrate/seed
+# Prisma schema, config, migrations, and files needed by migrate/seed
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/src/generated ./src/generated
+COPY --from=builder --chown=nextjs:nodejs /app/src/lib/pg-adapter.ts ./src/lib/pg-adapter.ts
 
 USER nextjs
 

@@ -1,13 +1,16 @@
 import "dotenv/config";
-import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, QuestionType } from "../src/generated/prisma/client";
+import { createPrismaPgAdapter } from "../src/lib/pg-adapter";
 
-const adapter = new PrismaPg({
-  connectionString: process.env.DATABASE_URL,
+const prisma = new PrismaClient({
+  adapter: createPrismaPgAdapter(),
 });
-const prisma = new PrismaClient({ adapter });
 
 async function main() {
+  console.log(
+    `Seeding database (DATABASE_URL ${process.env.DATABASE_URL ? "is set" : "is MISSING"})…`,
+  );
+
   const form = await prisma.form.upsert({
     where: { slug: "claude-comfort" },
     update: {
@@ -101,7 +104,7 @@ main()
     await prisma.$disconnect();
   })
   .catch(async (error) => {
-    console.error(error);
+    console.error("Seed failed:", error);
     await prisma.$disconnect();
     process.exit(1);
   });
