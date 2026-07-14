@@ -416,6 +416,9 @@ export async function POST(
     });
   } catch (error) {
     console.error("Failed to save submission:", error);
+    if (error && typeof error === "object" && "code" in error) {
+      console.error("Save failure code:", (error as { code?: string }).code);
+    }
     return NextResponse.json(
       { error: "Could not save your response. Please try again." },
       { status: 500 },

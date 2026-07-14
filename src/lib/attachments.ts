@@ -9,7 +9,14 @@ function projectRoot() {
 }
 
 export function getAttachmentsRoot() {
-  return process.env.ATTACHMENTS_DIR?.trim() || path.join(projectRoot(), ".uploads");
+  if (process.env.ATTACHMENTS_DIR?.trim()) {
+    return process.env.ATTACHMENTS_DIR.trim();
+  }
+  // Containers often run as a non-root user that cannot create /app/.uploads.
+  if (process.env.NODE_ENV === "production") {
+    return path.join("/tmp", "polly-uploads");
+  }
+  return path.join(projectRoot(), ".uploads");
 }
 
 function safeExtension(filename: string) {

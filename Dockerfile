@@ -35,6 +35,8 @@ ENV NODE_ENV=production
 # Standalone server listens on 3000 by default; Container Apps expects 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+# Writable by the non-root nextjs user (Docker/Railway)
+ENV ATTACHMENTS_DIR=/tmp/polly-uploads
 
 # Non-root user for security
 RUN addgroup --system --gid 1001 nodejs && \
@@ -55,6 +57,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/src/generated ./src/generated
 COPY --from=builder --chown=nextjs:nodejs /app/src/lib/pg-adapter.ts ./src/lib/pg-adapter.ts
+
+# Ensure runtime dirs are writable by nextjs (avoids EACCES on uploads/cache)
+RUN mkdir -p /tmp/polly-uploads /app/.uploads /app/.next/cache \
+  && chown -R nextjs:nodejs /app /tmp/polly-uploads
 
 USER nextjs
 
