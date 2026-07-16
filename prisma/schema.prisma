@@ -28,6 +28,7 @@ model Webhook {
   name           String
   url            String
   includeAnswers Boolean @default(false)
+  secret         String?
 
   @@index([formId])
 }
