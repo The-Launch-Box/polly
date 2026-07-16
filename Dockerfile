@@ -36,18 +36,14 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static    ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public          ./public
 
-# Copy Prisma schema + migrations + CLI for migrate/seed (pre-deploy / Container Apps Job)
+# Copy Prisma schema + migrations for migrate/seed (pre-deploy / Container Apps Job)
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/src/generated ./src/generated
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/tsx ./node_modules/tsx
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/esbuild ./node_modules/esbuild
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/get-tsconfig ./node_modules/get-tsconfig
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/resolve-pkg-maps ./node_modules/resolve-pkg-maps
-# .bin holds the `prisma` / `tsx` executables that npx resolves
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.bin ./node_modules/.bin
+# Copy the full node_modules so the Prisma CLI has all its transitive runtime
+# dependencies (e.g. `effect`, pulled in by @prisma/config). The standalone
+# output's pruned node_modules is not enough for `prisma migrate deploy`.
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 
 USER nextjs
 
