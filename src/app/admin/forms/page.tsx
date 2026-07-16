@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { getCompanyTheme } from "@/lib/company-themes";
 
 export const dynamic = "force-dynamic";
 
@@ -48,13 +49,20 @@ export default async function AdminFormsPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {forms.map((form) => (
+            {forms.map((form) => {
+              const theme = getCompanyTheme(form.themeId);
+              return (
               <article
                 key={form.id}
                 className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm"
               >
                 <div>
-                  <h2 className="font-medium text-zinc-900">{form.title}</h2>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="font-medium text-zinc-900">{form.title}</h2>
+                    <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">
+                      {theme.name}
+                    </span>
+                  </div>
                   <p className="mt-1 text-sm text-zinc-500">
                     /q/{form.slug} · {form._count.questions} question
                     {form._count.questions === 1 ? "" : "s"} ·{" "}
@@ -68,6 +76,12 @@ export default async function AdminFormsPage() {
                   )}
                 </div>
                 <div className="flex items-center gap-3">
+                  <Link
+                    href={`/admin/forms/${form.slug}/insights`}
+                    className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-800 transition hover:border-zinc-500"
+                  >
+                    Dashboard
+                  </Link>
                   <Link
                     href={`/admin/forms/${form.slug}/edit`}
                     className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-800 transition hover:border-zinc-500"
@@ -88,7 +102,8 @@ export default async function AdminFormsPage() {
                   </Link>
                 </div>
               </article>
-            ))}
+            );
+            })}
           </div>
         )}
       </div>

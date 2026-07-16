@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { formatAnswerValue } from "@/lib/types";
+import { formatDuration } from "@/lib/survey-insights";
+import { formatAnswerValue, isAttachmentAnswer } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -57,34 +58,62 @@ export default async function AdminSubmissionsPage() {
               key={submission.id}
               className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm"
             >
-              <div className="flex flex-wrap items-start justify-between gap-2 border-b border-zinc-100 pb-3">
+                <div className="flex flex-wrap items-start justify-between gap-2 border-b border-zinc-100 pb-3">
                 <div>
                   <h2 className="font-medium text-zinc-900">
-                    {submission.form.title}
+                    <Link
+                      href={`/admin/forms/${submission.form.slug}/insights`}
+                      className="hover:underline"
+                    >
+                      {submission.form.title}
+                    </Link>
                   </h2>
                   <p className="text-xs text-zinc-500">
                     {submission.form.slug} · {submission.id}
                   </p>
                 </div>
-                <time
-                  dateTime={submission.submittedAt.toISOString()}
-                  className="text-xs text-zinc-500"
-                >
-                  {submission.submittedAt.toLocaleString()}
-                </time>
+                <div className="text-right text-xs text-zinc-500">
+                  <time dateTime={submission.submittedAt.toISOString()}>
+                    {submission.submittedAt.toLocaleString()}
+                  </time>
+                  {submission.totalDurationMs != null && (
+                    <p className="mt-1">
+                      Total time: {formatDuration(submission.totalDurationMs)}
+                    </p>
+                  )}
+                </div>
               </div>
 
               <dl className="mt-4 space-y-3">
-                {submission.answers.map((answer) => (
-                  <div key={answer.id}>
-                    <dt className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                      Q{answer.question.order}: {answer.question.prompt}
-                    </dt>
-                    <dd className="mt-1 text-sm text-zinc-900">
-                      {formatAnswerValue(answer.value)}
-                    </dd>
-                  </div>
-                ))}
+                {submission.answers.map((answer) => {
+                  const attachment = isAttachmentAnswer(answer.value) ? answer.value : null;
+                  return (
+                    <div key={answer.id}>
+                      <dt className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                        Q{answer.question.order}: {answer.question.prompt}
+                      </dt>
+                      <dd className="mt-1 flex flex-wrap items-baseline justify-between gap-2 text-sm text-zinc-900">
+                        <span>
+                          {attachment ? (
+                            <a
+                              href={attachment.downloadUrl}
+                              className="underline underline-offset-2"
+                            >
+                              {attachment.filename}
+                            </a>
+                          ) : (
+                            formatAnswerValue(answer.value)
+                          )}
+                        </span>
+                        {answer.durationMs != null && (
+                          <span className="text-xs text-zinc-500 tabular-nums">
+                            {formatDuration(answer.durationMs)}
+                          </span>
+                        )}
+                      </dd>
+                    </div>
+                  );
+                })}
               </dl>
             </article>
           ))

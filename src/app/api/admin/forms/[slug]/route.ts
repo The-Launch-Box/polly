@@ -41,6 +41,8 @@ export async function GET(_request: Request, context: RouteContext) {
     slug: form.slug,
     title: form.title,
     description: form.description,
+    themeId: form.themeId,
+    anonymous: form.anonymous,
     submissionCount: form._count.submissions,
     questions: form.questions.map((question) => ({
       id: question.id,
@@ -95,6 +97,10 @@ export async function PATCH(request: Request, context: RouteContext) {
       return NextResponse.json({ error: error.message }, { status });
     }
 
-    throw error;
+    console.error("Form update failed:", error);
+    return NextResponse.json(
+      { error: "Could not save changes." },
+      { status: 500 },
+    );
   }
 }

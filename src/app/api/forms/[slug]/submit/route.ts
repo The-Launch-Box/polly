@@ -1,19 +1,49 @@
 import { NextResponse } from "next/server";
-import { QuestionType } from "@prisma/client";
+import { QuestionType } from "@/generated/prisma/enums";
+import { validateAttachmentFile } from "@/lib/attachments-shared";
+import { saveAttachmentFile } from "@/lib/attachments";
 import { prisma } from "@/lib/prisma";
 import type { AnswerInput, MultipleChoiceOptions, QuestionOptions } from "@/lib/types";
 import {
+  isAttachmentOptions,
   isChoiceListOptions,
   isHeatmapOptions,
   isHeatmapPoint,
+  isNpsOptions,
   isScaleOptions,
   isShortTextOptions,
   isSliderOptions,
 } from "@/lib/types";
+import { validateNpsAnswer } from "@/lib/nps";
+import { validateContactInfoAnswer, normalizeContactInfoAnswer, isContactInfoAnswer, isContactInfoComplete } from "@/lib/contact-info";
+import {
+  sanitizeAnswerValueForAnonymous,
+  stripSubmissionTiming,
+} from "@/lib/anonymity";
 
 type SubmitBody = {
   answers: AnswerInput[];
+  totalDurationMs?: number;
 };
+
+export const runtime = "nodejs";
+
+type ParsedSubmitBody = {
+  body: SubmitBody;
+  filesByQuestion: Map<string, File>;
+};
+
+const MAX_DURATION_MS = 24 * 60 * 60 * 1000;
+
+function normalizeDurationMs(value: unknown): number | null {
+  if (value === undefined || value === null) {
+    return null;
+  }
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
+    return null;
+  }
+  return Math.min(value, MAX_DURATION_MS);
+}
 
 function isEmptyAnswer(value: unknown): boolean {
   if (value === null || value === undefined || value === "") {
@@ -28,11 +58,39 @@ function isEmptyAnswer(value: unknown): boolean {
   return false;
 }
 
+async function parseSubmitBody(request: Request): Promise<ParsedSubmitBody> {
+  const contentType = request.headers.get("content-type") ?? "";
+
+  if (contentType.includes("multipart/form-data")) {
+    const formData = await request.formData();
+    const payload = formData.get("payload");
+    if (typeof payload !== "string") {
+      throw new Error("Invalid multipart payload.");
+    }
+
+    const parsed = JSON.parse(payload) as SubmitBody;
+    const filesByQuestion = new Map<string, File>();
+    for (const [key, value] of formData.entries()) {
+      if (key.startsWith("attachment:") && value instanceof File) {
+        filesByQuestion.set(key.replace("attachment:", ""), value);
+      }
+    }
+
+    return { body: parsed, filesByQuestion };
+  }
+
+  return {
+    body: (await request.json()) as SubmitBody,
+    filesByQuestion: new Map<string, File>(),
+  };
+}
+
 function validateAnswer(
   type: QuestionType,
   options: QuestionOptions | null,
   value: unknown,
   required: boolean,
+  anonymous = false,
 ): string | null {
   if (isEmptyAnswer(value)) {
     return required ? "This question is required." : null;
@@ -138,6 +196,24 @@ function validateAnswer(
       }
       return null;
     }
+    case QuestionType.ATTACHMENT: {
+      if (!(value instanceof File)) {
+        return "Attachment answers must include a file.";
+      }
+      if (!isAttachmentOptions(options)) {
+        return "Invalid attachment configuration.";
+      }
+      return validateAttachmentFile(value, options);
+    }
+    case QuestionType.NPS: {
+      if (!isNpsOptions(options)) {
+        return "Invalid NPS configuration.";
+      }
+      return validateNpsAnswer(value, options, required, anonymous);
+    }
+    case QuestionType.CONTACT_INFO: {
+      return validateContactInfoAnswer(value, required, anonymous);
+    }
     default:
       return "Unsupported question type.";
   }
@@ -156,14 +232,16 @@ export async function POST(
 ) {
   const { slug } = await context.params;
 
-  let body: SubmitBody;
+  let parsed: ParsedSubmitBody;
   try {
-    body = (await request.json()) as SubmitBody;
+    parsed = await parseSubmitBody(request);
   } catch {
-    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
+    return NextResponse.json({ error: "Invalid submission payload." }, { status: 400 });
   }
 
-  if (!Array.isArray(body.answers)) {
+  const { body: rawBody, filesByQuestion } = parsed;
+
+  if (!Array.isArray(rawBody.answers)) {
     return NextResponse.json(
       { error: "answers must be an array." },
       { status: 400 },
@@ -183,19 +261,26 @@ export async function POST(
     return NextResponse.json({ error: "Form not found." }, { status: 404 });
   }
 
+  const body = stripSubmissionTiming(rawBody, form.anonymous);
+
   const answersByQuestion = new Map(
-    body.answers.map((answer) => [answer.questionId, answer.value]),
+    body.answers.map((answer) => [answer.questionId, answer]),
   );
 
   const errors: Record<string, string> = {};
 
   for (const question of form.questions) {
-    const value = answersByQuestion.get(question.id);
+    const answer = answersByQuestion.get(question.id);
+    const value =
+      question.type === QuestionType.ATTACHMENT
+        ? filesByQuestion.get(question.id)
+        : answer?.value;
     const error = validateAnswer(
       question.type,
       question.options as QuestionOptions | null,
       value,
       question.required,
+      form.anonymous,
     );
     if (error) {
       errors[question.id] = error;
@@ -206,74 +291,134 @@ export async function POST(
     return NextResponse.json({ error: "Validation failed.", errors }, { status: 400 });
   }
 
-  const submission = await prisma.$transaction(async (tx) => {
-    const created = await tx.submission.create({
-      data: {
-        formId: form.id,
-      },
-    });
+  try {
+    const submission = await prisma.$transaction(async (tx) => {
+      const created = await tx.submission.create({
+        data: {
+          formId: form.id,
+          totalDurationMs: form.anonymous
+            ? null
+            : normalizeDurationMs(body.totalDurationMs),
+        },
+      });
 
-    const answerRows = form.questions
-      .map((question) => {
-        const rawValue = answersByQuestion.get(question.id);
-        if (isEmptyAnswer(rawValue)) {
-          return null;
-        }
-
-        let storedValue: unknown = rawValue;
-        if (question.type === QuestionType.SHORT_TEXT && typeof rawValue === "string") {
-          storedValue = rawValue.trim();
-        }
-        if (
-          question.type === QuestionType.SINGLE_CHOICE &&
-          typeof rawValue === "string"
-        ) {
-          const choiceOptions = question.options as QuestionOptions | null;
-          if (isChoiceListOptions(choiceOptions)) {
-            const match = choiceOptions.choices.find(
-              (choice) => choice.value === rawValue,
-            );
-            storedValue = match ?? rawValue;
+      const answerRows = await Promise.all(
+        form.questions.map(async (question) => {
+          const answer = answersByQuestion.get(question.id);
+          const rawValue =
+            question.type === QuestionType.ATTACHMENT
+              ? filesByQuestion.get(question.id)
+              : answer?.value;
+          if (isEmptyAnswer(rawValue)) {
+            return null;
           }
-        }
-        if (
-          question.type === QuestionType.MULTIPLE_CHOICE &&
-          Array.isArray(rawValue)
-        ) {
-          const choiceOptions = question.options as QuestionOptions | null;
-          if (isChoiceListOptions(choiceOptions)) {
-            storedValue = rawValue.map((selected) => {
+          if (
+            question.type === QuestionType.CONTACT_INFO &&
+            isContactInfoAnswer(rawValue) &&
+            !isContactInfoComplete(rawValue) &&
+            !question.required
+          ) {
+            return null;
+          }
+
+          let storedValue: unknown = sanitizeAnswerValueForAnonymous(
+            question.type,
+            rawValue,
+          );
+          if (question.type === QuestionType.SHORT_TEXT && typeof storedValue === "string") {
+            storedValue = storedValue.trim();
+          }
+          if (
+            question.type === QuestionType.SINGLE_CHOICE &&
+            typeof rawValue === "string"
+          ) {
+            const choiceOptions = question.options as QuestionOptions | null;
+            if (isChoiceListOptions(choiceOptions)) {
               const match = choiceOptions.choices.find(
-                (choice) => choice.value === selected,
+                (choice) => choice.value === rawValue,
               );
-              return match ?? selected;
+              storedValue = match ?? rawValue;
+            }
+          }
+          if (
+            question.type === QuestionType.MULTIPLE_CHOICE &&
+            Array.isArray(rawValue)
+          ) {
+            const choiceOptions = question.options as QuestionOptions | null;
+            if (isChoiceListOptions(choiceOptions)) {
+              storedValue = rawValue.map((selected) => {
+                const match = choiceOptions.choices.find(
+                  (choice) => choice.value === selected,
+                );
+                return match ?? selected;
+              });
+            }
+          }
+          if (question.type === QuestionType.HEATMAP && isHeatmapPoint(rawValue)) {
+            storedValue = {
+              x: Math.round(rawValue.x * 10) / 10,
+              y: Math.round(rawValue.y * 10) / 10,
+            };
+          }
+          if (question.type === QuestionType.ATTACHMENT && rawValue instanceof File) {
+            storedValue = await saveAttachmentFile({
+              submissionId: created.id,
+              questionId: question.id,
+              file: rawValue,
             });
           }
-        }
-        if (question.type === QuestionType.HEATMAP && isHeatmapPoint(rawValue)) {
-          storedValue = {
-            x: Math.round(rawValue.x * 10) / 10,
-            y: Math.round(rawValue.y * 10) / 10,
+          if (question.type === QuestionType.NPS && typeof storedValue === "object" && storedValue) {
+            const npsValue = storedValue as {
+              score: number;
+              path: string;
+              followUpText?: string;
+            };
+            storedValue = {
+              score: npsValue.score,
+              path: npsValue.path,
+              ...(npsValue.followUpText?.trim()
+                ? { followUpText: npsValue.followUpText.trim() }
+                : {}),
+            };
+          }
+          if (
+            question.type === QuestionType.CONTACT_INFO &&
+            isContactInfoAnswer(storedValue)
+          ) {
+            storedValue = normalizeContactInfoAnswer(storedValue);
+          }
+
+          return {
+            submissionId: created.id,
+            questionId: question.id,
+            value: storedValue as object,
+            durationMs: form.anonymous
+              ? null
+              : normalizeDurationMs(answer?.durationMs),
           };
-        }
+        }),
+      );
 
-        return {
-          submissionId: created.id,
-          questionId: question.id,
-          value: storedValue as object,
-        };
-      })
-      .filter((row): row is NonNullable<typeof row> => row !== null);
+      const nonNullAnswerRows = answerRows.filter(
+        (row): row is NonNullable<typeof row> => row !== null,
+      );
 
-    if (answerRows.length > 0) {
-      await tx.answer.createMany({ data: answerRows });
-    }
+      if (nonNullAnswerRows.length > 0) {
+        await tx.answer.createMany({ data: nonNullAnswerRows });
+      }
 
-    return created;
-  });
+      return created;
+    });
 
-  return NextResponse.json({
-    submissionId: submission.id,
-    submittedAt: submission.submittedAt,
-  });
+    return NextResponse.json({
+      submissionId: submission.id,
+      submittedAt: submission.submittedAt,
+    });
+  } catch (error) {
+    console.error("Failed to save submission:", error);
+    return NextResponse.json(
+      { error: "Could not save your response. Please try again." },
+      { status: 500 },
+    );
+  }
 }
