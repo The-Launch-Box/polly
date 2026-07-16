@@ -3,6 +3,7 @@ import { QuestionType } from "@/generated/prisma/enums";
 import { validateAttachmentFile } from "@/lib/attachments-shared";
 import { saveAttachmentFile } from "@/lib/attachments";
 import { prisma } from "@/lib/prisma";
+import { fireWebhooks } from "@/lib/webhooks";
 import type { AnswerInput, MultipleChoiceOptions, QuestionOptions } from "@/lib/types";
 import {
   isAttachmentOptions,
@@ -409,6 +410,8 @@ export async function POST(
 
       return created;
     });
+
+    await fireWebhooks(form.id, slug, submission.id, submission.submittedAt);
 
     return NextResponse.json({
       submissionId: submission.id,
