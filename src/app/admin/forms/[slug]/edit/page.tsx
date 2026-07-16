@@ -19,6 +19,7 @@ export default async function EditFormPage({ params }: EditFormPageProps) {
       questions: {
         orderBy: { order: "asc" },
       },
+      webhooks: true,
       _count: {
         select: { submissions: true },
       },
@@ -54,6 +55,13 @@ export default async function EditFormPage({ params }: EditFormPageProps) {
           mode="edit"
           originalSlug={form.slug}
           submissionCount={form._count.submissions}
+          initialWebhooks={form.webhooks.map((wh) => ({
+            id: wh.id,
+            name: wh.name,
+            url: wh.url,
+            includeAnswers: wh.includeAnswers,
+            secret: wh.secret,
+          }))}
           initialData={{
             slug: form.slug,
             title: form.title,

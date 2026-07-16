@@ -23,6 +23,7 @@ import {
 } from "@/lib/nps";
 import { DEFAULT_CONTACT_INFO_PROMPT } from "@/lib/contact-info";
 import { ThemePicker } from "@/components/admin/ThemePicker";
+import { WebhookSection, type WebhookInput } from "@/components/admin/WebhookSection";
 import type {
   QuestionOptions,
   ScaleOptions,
@@ -74,6 +75,7 @@ type FormBuilderProps = {
   originalSlug?: string;
   initialData?: FormInput;
   submissionCount?: number;
+  initialWebhooks?: WebhookInput[];
 };
 
 export function FormBuilder({
@@ -81,6 +83,7 @@ export function FormBuilder({
   originalSlug,
   initialData,
   submissionCount = 0,
+  initialWebhooks = [],
 }: FormBuilderProps) {
   const isEdit = mode === "edit";
   const router = useRouter();
@@ -391,6 +394,13 @@ export function FormBuilder({
           />
         ))}
       </section>
+
+      {isEdit && (
+        <WebhookSection
+          formSlug={originalSlug!}
+          initialWebhooks={initialWebhooks}
+        />
+      )}
 
       {error && (
         <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
