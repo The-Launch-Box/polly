@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+@source "../**/*";
+@source not "../../marketing-themes/**/*";
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -23,4 +26,74 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* Survey question transitions (Typeform-style vertical slides) */
+@keyframes survey-enter-forward {
+  from {
+    opacity: 0;
+    transform: translateY(2rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes survey-enter-back {
+  from {
+    opacity: 0;
+    transform: translateY(-2rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes survey-exit-forward {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-2rem);
+  }
+}
+
+@keyframes survey-exit-back {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(2rem);
+  }
+}
+
+.survey-step-enter-forward {
+  animation: survey-enter-forward 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.survey-step-enter-back {
+  animation: survey-enter-back 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.survey-step-exit-forward {
+  animation: survey-exit-forward 0.28s cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+.survey-step-exit-back {
+  animation: survey-exit-back 0.28s cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .survey-step-enter-forward,
+  .survey-step-enter-back,
+  .survey-step-exit-forward,
+  .survey-step-exit-back {
+    animation: none;
+  }
 }

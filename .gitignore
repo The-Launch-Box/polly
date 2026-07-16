@@ -24,6 +24,7 @@
 .DS_Store
 *.pem
 .pgdata
+.uploads/
 .azure/
 
 # Local Azure CLI venv (scripts/azure-bootstrap.sh)
@@ -49,3 +50,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# prisma
+/src/generated/prisma
+
+# Large print-source assets (PNG/SVG/PDF kept in repo)
+marketing-themes/Improv/Nautilus/EPS/

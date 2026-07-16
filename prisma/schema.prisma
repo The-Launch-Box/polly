@@ -1,10 +1,10 @@
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model Form {
@@ -12,6 +12,8 @@ model Form {
   slug        String       @unique
   title       String
   description String?
+  themeId     String       @default("default")
+  anonymous   Boolean      @default(false)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   questions   Question[]
@@ -37,6 +39,9 @@ enum QuestionType {
   SHORT_TEXT
   SLIDER
   HEATMAP
+  ATTACHMENT
+  NPS
+  CONTACT_INFO
 }
 
 model Question {
@@ -57,11 +62,12 @@ model Question {
 }
 
 model Submission {
-  id          String   @id @default(cuid())
-  formId      String
-  form        Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
-  submittedAt DateTime @default(now())
-  answers     Answer[]
+  id              String   @id @default(cuid())
+  formId          String
+  form            Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  submittedAt     DateTime @default(now())
+  totalDurationMs Int?
+  answers         Answer[]
 
   @@index([formId])
   @@index([submittedAt])
@@ -74,6 +80,7 @@ model Answer {
   questionId   String
   question     Question   @relation(fields: [questionId], references: [id], onDelete: Cascade)
   value        Json
+  durationMs   Int?
 
   @@unique([submissionId, questionId])
   @@index([submissionId])
