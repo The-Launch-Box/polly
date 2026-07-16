@@ -92,14 +92,17 @@ export async function DELETE(_request: Request, context: RouteContext) {
   const { slug, id } = await context.params;
   const form = await prisma.form.findUnique({ where: { slug } });
   if (!form) {
+    console.error(`[webhook] DELETE 404: no form with slug="${slug}"`);
     return NextResponse.json({ error: "Form not found." }, { status: 404 });
   }
 
   const existing = await prisma.webhook.findFirst({ where: { id, formId: form.id } });
   if (!existing) {
+    console.error(`[webhook] DELETE 404: webhook id="${id}" not found on form id="${form.id}"`);
     return NextResponse.json({ error: "Webhook not found." }, { status: 404 });
   }
 
   await prisma.webhook.delete({ where: { id } });
+  console.log(`[webhook] DELETE OK id="${id}"`);
   return new Response(null, { status: 204 });
 }
