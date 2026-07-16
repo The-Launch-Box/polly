@@ -1,4 +1,9 @@
+import { randomBytes } from "crypto";
 import { prisma } from "@/lib/prisma";
+
+export function generateWebhookSecret(): string {
+  return randomBytes(16).toString("hex");
+}
 
 export async function fireWebhooks(
   formId: string,
@@ -30,9 +35,11 @@ export async function fireWebhooks(
       const payload = canSendAnswers
         ? { ...basePayload, answers: answers.map((a) => ({ questionId: a.questionId, value: a.value })) }
         : basePayload;
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (webhook.secret) headers["x-secret"] = webhook.secret;
       return fetch(webhook.url, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(payload),
       });
     }),
