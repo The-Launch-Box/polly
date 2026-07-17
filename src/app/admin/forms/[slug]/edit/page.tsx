@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { FormBuilder } from "@/components/admin/FormBuilder";
 import { prisma } from "@/lib/prisma";
-import type { QuestionOptions } from "@/lib/types";
+import type { QuestionOptions, QuestionVisibility } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +75,7 @@ export default async function EditFormPage({ params }: EditFormPageProps) {
               prompt: question.prompt,
               required: question.required,
               options: question.options as QuestionOptions,
+              visibility: question.visibility as QuestionVisibility | null,
             })),
           }}
         />

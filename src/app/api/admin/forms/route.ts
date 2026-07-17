@@ -69,11 +69,15 @@ export async function POST(request: Request) {
         anonymous: normalized.anonymous ?? false,
         questions: {
           create: normalized.questions.map((question) => ({
+            ...(question.id ? { id: question.id } : {}),
             order: question.order,
             type: question.type,
             prompt: question.prompt,
             required: question.required,
             options: question.options as Prisma.InputJsonValue,
+            visibility: question.visibility
+              ? (question.visibility as Prisma.InputJsonValue)
+              : Prisma.DbNull,
           })),
         },
       },

@@ -1,5 +1,9 @@
 import { prisma } from "@/lib/prisma";
-import type { FormPayload, QuestionOptions } from "@/lib/types";
+import type {
+  FormPayload,
+  QuestionOptions,
+  QuestionVisibility,
+} from "@/lib/types";
 
 export async function getFormBySlug(slug: string): Promise<FormPayload | null> {
   const form = await prisma.form.findUnique({
@@ -28,6 +32,7 @@ export async function getFormBySlug(slug: string): Promise<FormPayload | null> {
       prompt: question.prompt,
       required: question.required,
       options: question.options as QuestionOptions | null,
+      visibility: question.visibility as QuestionVisibility | null,
     })),
   };
 }

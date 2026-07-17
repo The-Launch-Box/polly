@@ -49,14 +49,15 @@ model Question {
   id        String       @id @default(cuid())
   formId    String
   form      Form         @relation(fields: [formId], references: [id], onDelete: Cascade)
-  order     Int
-  type      QuestionType
-  prompt    String
-  required  Boolean      @default(true)
-  options   Json?
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-  answers   Answer[]
+  order      Int
+  type       QuestionType
+  prompt     String
+  required   Boolean      @default(true)
+  options    Json?
+  visibility Json?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  answers    Answer[]
 
   @@unique([formId, order])
   @@index([formId])

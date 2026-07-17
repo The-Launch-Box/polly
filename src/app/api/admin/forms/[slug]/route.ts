@@ -7,7 +7,7 @@ import {
 } from "@/lib/form-create";
 import { FormUpdateError, updateFormBySlug } from "@/lib/form-update";
 import { prisma } from "@/lib/prisma";
-import type { QuestionOptions } from "@/lib/types";
+import type { QuestionOptions, QuestionVisibility } from "@/lib/types";
 
 type RouteContext = {
   params: Promise<{ slug: string }>;
@@ -51,6 +51,7 @@ export async function GET(_request: Request, context: RouteContext) {
       prompt: question.prompt,
       required: question.required,
       options: question.options as QuestionOptions,
+      visibility: question.visibility as QuestionVisibility | null,
     })),
   });
 }
