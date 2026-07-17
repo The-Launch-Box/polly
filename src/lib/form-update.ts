@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 import { normalizeFormInput, type UpdateFormInput } from "@/lib/form-create";
 import { prisma } from "@/lib/prisma";
 
@@ -95,6 +95,8 @@ export async function updateFormBySlug(
         slug: normalized.slug,
         title: normalized.title,
         description: normalized.description,
+        themeId: normalized.themeId ?? "default",
+        anonymous: normalized.anonymous ?? false,
       },
     });
 

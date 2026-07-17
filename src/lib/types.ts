@@ -1,4 +1,4 @@
-import { QuestionType } from "@prisma/client";
+import { QuestionType } from "@/generated/prisma/enums";
 
 export type ScaleOptions = {
   min: number;
@@ -46,13 +46,64 @@ export type HeatmapOptions = {
   maxClicks?: number;
 };
 
+export type AttachmentKind = "image" | "video" | "document";
+
+export type AttachmentOptions = {
+  allowedKinds?: AttachmentKind[];
+  maxSizeMb?: number;
+};
+
+export type AttachmentAnswer = {
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  downloadUrl: string;
+};
+
+export type NpsContactField = "name" | "email" | "company" | "title";
+
+export type NpsLink = {
+  label: string;
+  url: string;
+};
+
+export type NpsOptions = {
+  firmName: string;
+  followUpPrompt?: string;
+  promoterRedirectUrl?: string;
+  contactFields?: NpsContactField[];
+  closingLogoUrl?: string;
+  closingTitle?: string;
+  closingBody?: string;
+  closingLinks?: NpsLink[];
+};
+
+export type NpsAnswer = {
+  score: number;
+  path: "promoter" | "detractor";
+  followUpText?: string;
+  contact?: Partial<Record<NpsContactField, string>>;
+};
+
+export type ContactInfoOptions = Record<string, never>;
+
+export type ContactInfoAnswer = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  businessName: string;
+};
+
 export type QuestionOptions =
   | ScaleOptions
   | SingleChoiceOptions
   | MultipleChoiceOptions
   | ShortTextOptions
   | SliderOptions
-  | HeatmapOptions;
+  | HeatmapOptions
+  | AttachmentOptions
+  | NpsOptions
+  | ContactInfoOptions;
 
 export type FormQuestion = {
   id: string;
@@ -67,12 +118,15 @@ export type FormPayload = {
   slug: string;
   title: string;
   description: string | null;
+  themeId: string;
+  anonymous: boolean;
   questions: FormQuestion[];
 };
 
 export type AnswerInput = {
   questionId: string;
   value: unknown;
+  durationMs?: number;
 };
 
 export function isScaleOptions(
@@ -162,6 +216,63 @@ export function isHeatmapPoint(value: unknown): value is HeatmapPoint {
   );
 }
 
+export function isAttachmentOptions(
+  options: QuestionOptions | null,
+): options is AttachmentOptions {
+  return (
+    options !== null &&
+    typeof options === "object" &&
+    ("allowedKinds" in options || "maxSizeMb" in options)
+  );
+}
+
+export function isNpsOptions(
+  options: QuestionOptions | null,
+): options is NpsOptions {
+  return (
+    options !== null &&
+    typeof options === "object" &&
+    "firmName" in options &&
+    typeof (options as NpsOptions).firmName === "string"
+  );
+}
+
+export function isNpsAnswer(value: unknown): value is NpsAnswer {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as NpsAnswer).score === "number" &&
+    ((value as NpsAnswer).path === "promoter" ||
+      (value as NpsAnswer).path === "detractor")
+  );
+}
+
+export function isContactInfoAnswer(value: unknown): value is ContactInfoAnswer {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as ContactInfoAnswer).firstName === "string" &&
+    typeof (value as ContactInfoAnswer).lastName === "string" &&
+    typeof (value as ContactInfoAnswer).email === "string" &&
+    typeof (value as ContactInfoAnswer).businessName === "string"
+  );
+}
+
+export function isAttachmentAnswer(value: unknown): value is AttachmentAnswer {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "filename" in value &&
+    typeof (value as AttachmentAnswer).filename === "string" &&
+    "mimeType" in value &&
+    typeof (value as AttachmentAnswer).mimeType === "string" &&
+    "sizeBytes" in value &&
+    typeof (value as AttachmentAnswer).sizeBytes === "number" &&
+    "downloadUrl" in value &&
+    typeof (value as AttachmentAnswer).downloadUrl === "string"
+  );
+}
+
 export function formatAnswerValue(value: unknown): string {
   if (value === null || value === undefined) {
     return "—";
@@ -191,6 +302,27 @@ export function formatAnswerValue(value: unknown): string {
   }
   if (isHeatmapPoint(value)) {
     return `(${value.x.toFixed(1)}%, ${value.y.toFixed(1)}%)`;
+  }
+  if (isAttachmentAnswer(value)) {
+    return value.filename;
+  }
+  if (isNpsAnswer(value)) {
+    const parts = [`Score: ${value.score}/10`];
+    if (value.followUpText) {
+      parts.push(`Feedback: ${value.followUpText}`);
+    }
+    if (value.contact) {
+      const contactParts = Object.entries(value.contact)
+        .filter(([, entry]) => entry)
+        .map(([key, entry]) => `${key}: ${entry}`);
+      if (contactParts.length > 0) {
+        parts.push(contactParts.join("; "));
+      }
+    }
+    return parts.join(" · ");
+  }
+  if (isContactInfoAnswer(value)) {
+    return `${value.firstName} ${value.lastName} · ${value.email} · ${value.businessName}`;
   }
   if (typeof value === "object" && value !== null && "label" in value) {
     return String((value as { label: string }).label);

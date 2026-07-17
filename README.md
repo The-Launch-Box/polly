@@ -8,12 +8,13 @@ An internal survey platform built with **Next.js 16 (App Router)**, **Prisma**, 
 
 1. [Project Overview](#project-overview)
 2. [Local Development (Docker Compose)](#local-development-docker-compose)
-3. [Demo Quiz — Claude Comfort Survey](#demo-quiz--claude-comfort-survey)
-4. [Azure Architecture](#azure-architecture)
-5. [Azure Deployment Guide](#azure-deployment-guide)
-6. [Environment Variables Reference](#environment-variables-reference)
-7. [CI/CD](#cicd)
-8. [Decisions & Open Questions](#decisions--open-questions)
+3. [Admin sign-in (local)](#admin-sign-in-local)
+4. [Demo Quiz — Claude Comfort Survey](#demo-quiz--claude-comfort-survey)
+5. [Azure Architecture](#azure-architecture)
+6. [Azure Deployment Guide](#azure-deployment-guide)
+7. [Environment Variables Reference](#environment-variables-reference)
+8. [CI/CD](#cicd)
+9. [Decisions & Open Questions](#decisions--open-questions)
 
 ---
 
@@ -44,7 +45,7 @@ Docker Compose spins up a local PostgreSQL instance. No Azure account needed.
 ### Quick start
 
 ```bash
-# 1. Copy env file and leave defaults as-is for local dev
+# 1. Copy env file
 cp .env.example .env
 
 # 2. Start Postgres
@@ -57,13 +58,18 @@ npm install
 npx prisma migrate dev
 npx prisma db seed
 
-# 5. Start the dev server
+# 5. Configure admin auth in .env (see "Admin sign-in (local)" below)
+#    At minimum: AUTH_SECRET + Microsoft Entra ID variables
+
+# 6. Start the dev server
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-The demo quiz is available at **`/q/claude-comfort`** once the seed runs (see below).
+The demo quiz is available at **`/q/claude-comfort`** once the seed runs (see below). Public quiz URLs work without signing in. **`/admin/*` routes require Microsoft sign-in.**
+
+Attachment question uploads are stored locally in `./.uploads` by default. Set `ATTACHMENTS_DIR` if you want them written elsewhere in development.
 
 ### Reset local database
 
@@ -73,6 +79,84 @@ docker compose up -d
 npx prisma migrate dev
 npx prisma db seed
 ```
+
+---
+
+## Admin sign-in (local)
+
+Admin routes (`/admin/*`) use **Auth.js (NextAuth v5)** with **Microsoft Entra ID**. Public quiz pages (`/q/*`) stay open — no login required.
+
+### One-time setup: Entra app registration
+
+If you already registered an app for this project, skip to [Sign in again](#sign-in-again). Reuse the same Client ID, tenant, and secret (or create a new client secret if the old one expired).
+
+1. Open [Azure Portal → App registrations](https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) → **New registration**.
+2. Name it (e.g. `typeform-alt-local`), choose **Accounts in this organizational directory only**, and register.
+3. Under **Authentication** → **Add a platform** → **Web**, add this redirect URI:
+
+   ```
+   http://localhost:3000/api/auth/callback/microsoft-entra-id
+   ```
+
+4. Under **Certificates & secrets** → **New client secret** → copy the **Value** immediately (it is shown only once).
+5. Note these values from the app overview:
+   - **Application (client) ID**
+   - **Directory (tenant) ID**
+
+### Configure `.env`
+
+```bash
+# Generate a signing secret (once per machine / .env file)
+openssl rand -hex 32
+```
+
+Add to `.env`:
+
+```env
+AUTH_SECRET=<output of openssl rand -hex 32>
+AUTH_URL=http://localhost:3000
+AUTH_MICROSOFT_ENTRA_ID_ID=<Application (client) ID>
+AUTH_MICROSOFT_ENTRA_ID_SECRET=<client secret value>
+AUTH_MICROSOFT_ENTRA_ID_ISSUER=https://login.microsoftonline.com/<tenant-id>/v2.0
+# Or paste the tenant ID alone — both work:
+# AUTH_MICROSOFT_ENTRA_ID_ISSUER=<tenant-id>
+```
+
+Restart the dev server after changing `.env` (`Ctrl+C`, then `npm run dev`).
+
+### Sign in again
+
+Whenever you want to use the admin portal locally:
+
+```bash
+# 1. Postgres + app running (from Quick start)
+docker compose up -d
+npm run dev
+```
+
+2. Open either:
+   - [http://localhost:3000/admin/forms](http://localhost:3000/admin/forms), or
+   - the homepage → **Admin — create & manage surveys**
+
+3. You are redirected to the sign-in page. Click **Microsoft Entra ID** (or **Sign in with Microsoft**).
+
+4. Complete login in the browser with your work Microsoft account.
+
+5. After OAuth redirects back, you land in the admin area (Surveys, Submissions, etc.).
+
+**Sign out:** use **Sign out** in the admin header, or visit [http://localhost:3000/api/auth/signout](http://localhost:3000/api/auth/signout).
+
+### Troubleshooting
+
+| Symptom | Likely cause |
+|---|---|
+| "Server error — problem with the server configuration" | `AUTH_SECRET` is missing or empty in `.env` |
+| Sign-in page loads but Microsoft login fails | Wrong or expired `AUTH_MICROSOFT_ENTRA_ID_SECRET`, or redirect URI not registered in Entra |
+| "Server error" right after clicking Microsoft sign-in | `AUTH_MICROSOFT_ENTRA_ID_ISSUER` must be a full URL or tenant UUID (see `.env.example`) |
+| Redirect loop or "redirect_uri mismatch" | Redirect URI in Entra must be exactly `http://localhost:3000/api/auth/callback/microsoft-entra-id` |
+| Changes to `.env` ignored | Restart `npm run dev` |
+
+Check server logs: `.next/dev/logs/next-development.log` (look for `[auth][error]` lines).
 
 ---
 
@@ -320,8 +404,12 @@ Copy `.env.example` to `.env` for local development. On Azure, all secrets come 
 | `DATABASE_URL` | ✅ | PostgreSQL connection string (Prisma) | `postgresql://typeform:typeform@localhost:5432/typeform?schema=public` |
 | `AZURE_KEY_VAULT_URI` | Azure only | Key Vault URI for secret fetching | — |
 | `AZURE_CLIENT_ID` | Azure only | Managed identity / service principal | — |
-| `NEXTAUTH_SECRET` | Future | NextAuth.js signing secret | — |
-| `NEXTAUTH_URL` | Future | Public app URL for OAuth redirects | — |
+| `ATTACHMENTS_DIR` | Optional | Local/server attachment upload directory | `.uploads` |
+| `AUTH_SECRET` | ✅ for `/admin` | Auth.js session signing secret (`openssl rand -hex 32`) | — |
+| `AUTH_URL` | ✅ for `/admin` | Public app URL for OAuth redirects | `http://localhost:3000` |
+| `AUTH_MICROSOFT_ENTRA_ID_ID` | ✅ for `/admin` | Entra app registration → Application (client) ID | — |
+| `AUTH_MICROSOFT_ENTRA_ID_SECRET` | ✅ for `/admin` | Entra app registration → client secret value | — |
+| `AUTH_MICROSOFT_ENTRA_ID_ISSUER` | ✅ for `/admin` | Tenant issuer URL | `https://login.microsoftonline.com/<tenant-id>/v2.0` |
 
 ---
 
@@ -350,7 +438,7 @@ The workflow in `.github/workflows/azure-deploy.yml`:
 |---|---|---|
 | Database | `docker compose up -d` | PostgreSQL Flexible Server (private endpoint) |
 | Secrets | `.env` file | Key Vault → Container Apps env refs |
-| Auth | None (open) | Entra ID Easy Auth |
+| Auth | Auth.js + Entra ID for `/admin` only; `/q/*` open | Entra ID Easy Auth (platform) or Auth.js in app |
 | Image build | `npm run dev` (hot reload) | `docker build` → ACR → Container Apps |
 | Migrations | `npx prisma migrate dev` | Container Apps Job on deploy |
 | Seed | `npx prisma db seed` | Included in migrate job (idempotent) |
@@ -361,7 +449,7 @@ The workflow in `.github/workflows/azure-deploy.yml`:
 
 | Decision | Recommendation | Notes |
 |---|---|---|
-| Entra ID Easy Auth vs custom NextAuth | **Easy Auth** for now | Zero code; add NextAuth only if you need fine-grained role logic inside the app |
+| Entra ID Easy Auth vs Auth.js | **Auth.js for `/admin` locally**; Easy Auth optional on Azure | App-layer auth gives per-route control; Easy Auth can still sit in front of the whole app in production |
 | Scale-to-zero on Container Apps | **Set min=0 nights/weekends** via scaling rule | Saves ~30% cost; adds ~2–3s cold start on first request |
 | PostgreSQL HA standby | **No** for now | Enable Zone Redundant HA if this becomes business-critical |
 | Prisma migrate deploy vs dev | **`prisma migrate deploy`** in CI | `migrate dev` is for local only; deploy is safe for production |

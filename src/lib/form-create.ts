@@ -1,4 +1,9 @@
-import { QuestionType } from "@prisma/client";
+import { QuestionType } from "@/generated/prisma/enums";
+import { COMPANY_THEME_IDS, DEFAULT_THEME_ID } from "@/lib/company-themes";
+import {
+  isQuestionTypeValue,
+  type QuestionTypeValue,
+} from "@/lib/question-types";
 import type {
   QuestionOptions,
   ScaleOptions,
@@ -7,7 +12,15 @@ import type {
   ShortTextOptions,
   SliderOptions,
   HeatmapOptions,
+  AttachmentOptions,
+  NpsOptions,
+  NpsContactField,
 } from "@/lib/types";
+import {
+  DEFAULT_NPS_CLOSING_BODY,
+  DEFAULT_NPS_CLOSING_TITLE,
+  DEFAULT_NPS_FOLLOW_UP_PROMPT,
+} from "@/lib/nps";
 
 export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -24,6 +37,8 @@ export type FormInput = {
   slug: string;
   title: string;
   description?: string | null;
+  themeId?: string;
+  anonymous?: boolean;
   questions: FormQuestionInput[];
 };
 
@@ -39,17 +54,21 @@ export function slugify(text: string): string {
 }
 
 export function defaultOptionsForType(type: QuestionType): QuestionOptions {
-  switch (type) {
-    case QuestionType.SCALE:
+  if (!isQuestionTypeValue(type)) {
+    return { placeholder: "" };
+  }
+
+  switch (type as QuestionTypeValue) {
+    case "SCALE":
       return { min: 1, max: 5, minLabel: "", maxLabel: "" };
-    case QuestionType.SINGLE_CHOICE:
+    case "SINGLE_CHOICE":
       return {
         choices: [
           { value: "option-1", label: "Option 1" },
           { value: "option-2", label: "Option 2" },
         ],
       };
-    case QuestionType.MULTIPLE_CHOICE:
+    case "MULTIPLE_CHOICE":
       return {
         choices: [
           { value: "option-1", label: "Option 1" },
@@ -57,16 +76,34 @@ export function defaultOptionsForType(type: QuestionType): QuestionOptions {
           { value: "option-3", label: "Option 3" },
         ],
       };
-    case QuestionType.SHORT_TEXT:
+    case "SHORT_TEXT":
       return { placeholder: "", maxLength: 500 };
-    case QuestionType.SLIDER:
+    case "SLIDER":
       return { min: 0, max: 100, step: 1, minLabel: "", maxLabel: "" };
-    case QuestionType.HEATMAP:
+    case "HEATMAP":
       return {
         imageUrl: "https://images.unsplash.com/photo-1497366216548-37526070297c?w=800",
         alt: "Click on the image",
         maxClicks: 1,
       };
+    case "ATTACHMENT":
+      return {
+        allowedKinds: ["image", "video", "document"],
+        maxSizeMb: 25,
+      };
+    case "NPS":
+      return {
+        firmName: "our firm",
+        followUpPrompt: DEFAULT_NPS_FOLLOW_UP_PROMPT,
+        promoterRedirectUrl: "",
+        contactFields: ["name", "email", "company"],
+        closingTitle: DEFAULT_NPS_CLOSING_TITLE,
+        closingBody: DEFAULT_NPS_CLOSING_BODY,
+        closingLinks: [],
+        closingLogoUrl: "",
+      };
+    case "CONTACT_INFO":
+      return {};
     default:
       return { placeholder: "" };
   }
@@ -96,9 +133,19 @@ export function validateFormInput(input: FormInput): Record<string, string> {
     errors.description = "Description must be at most 1000 characters.";
   }
 
+  const themeId = input.themeId?.trim() || DEFAULT_THEME_ID;
+  if (!COMPANY_THEME_IDS.includes(themeId)) {
+    errors.themeId = "Select a valid company theme.";
+  }
+
   if (!Array.isArray(input.questions) || input.questions.length === 0) {
     errors.questions = "Add at least one question.";
     return errors;
+  }
+
+  if (input.anonymous && input.questions.some((question) => question.type === "CONTACT_INFO")) {
+    errors.questions =
+      "Anonymous surveys cannot include contact information questions.";
   }
 
   input.questions.forEach((question, index) => {
@@ -127,8 +174,12 @@ function validateQuestionOptions(
   type: QuestionType,
   options: QuestionOptions,
 ): string | null {
-  switch (type) {
-    case QuestionType.SCALE: {
+  if (!isQuestionTypeValue(type)) {
+    return "Unsupported question type.";
+  }
+
+  switch (type as QuestionTypeValue) {
+    case "SCALE": {
       const scale = options as ScaleOptions;
       if (
         typeof scale.min !== "number" ||
@@ -146,8 +197,8 @@ function validateQuestionOptions(
       }
       return null;
     }
-    case QuestionType.SINGLE_CHOICE:
-    case QuestionType.MULTIPLE_CHOICE: {
+    case "SINGLE_CHOICE":
+    case "MULTIPLE_CHOICE": {
       const choice = options as SingleChoiceOptions | MultipleChoiceOptions;
       if (!Array.isArray(choice.choices) || choice.choices.length < 2) {
         return "Add at least two choices.";
@@ -169,7 +220,7 @@ function validateQuestionOptions(
         }
         values.add(value);
       }
-      if (type === QuestionType.MULTIPLE_CHOICE) {
+      if (type === "MULTIPLE_CHOICE") {
         const multi = options as MultipleChoiceOptions;
         const min = multi.minSelections ?? 1;
         const max = multi.maxSelections ?? choice.choices.length;
@@ -185,7 +236,7 @@ function validateQuestionOptions(
       }
       return null;
     }
-    case QuestionType.SHORT_TEXT: {
+    case "SHORT_TEXT": {
       const text = options as ShortTextOptions;
       if (
         text.maxLength !== undefined &&
@@ -195,7 +246,7 @@ function validateQuestionOptions(
       }
       return null;
     }
-    case QuestionType.SLIDER: {
+    case "SLIDER": {
       const slider = options as SliderOptions;
       if (typeof slider.min !== "number" || typeof slider.max !== "number") {
         return "Slider min and max are required.";
@@ -211,7 +262,7 @@ function validateQuestionOptions(
       }
       return null;
     }
-    case QuestionType.HEATMAP: {
+    case "HEATMAP": {
       const heatmap = options as HeatmapOptions;
       if (!heatmap.imageUrl?.trim()) {
         return "Heatmap image URL is required.";
@@ -229,6 +280,76 @@ function validateQuestionOptions(
       }
       return null;
     }
+    case "ATTACHMENT": {
+      const attachment = options as AttachmentOptions;
+      if (
+        attachment.allowedKinds !== undefined &&
+        (!Array.isArray(attachment.allowedKinds) ||
+          attachment.allowedKinds.length === 0 ||
+          attachment.allowedKinds.some(
+            (kind) =>
+              kind !== "image" && kind !== "video" && kind !== "document",
+          ))
+      ) {
+        return "Choose at least one allowed attachment type.";
+      }
+      if (
+        attachment.maxSizeMb !== undefined &&
+        (!Number.isInteger(attachment.maxSizeMb) || attachment.maxSizeMb < 1)
+      ) {
+        return "Max attachment size must be a positive whole number.";
+      }
+      return null;
+    }
+    case "NPS": {
+      const nps = options as NpsOptions;
+      if (!nps.firmName?.trim()) {
+        return "Firm name is required for NPS questions.";
+      }
+      if (nps.promoterRedirectUrl?.trim()) {
+        try {
+          new URL(nps.promoterRedirectUrl.trim());
+        } catch {
+          return "Promoter redirect URL must be a valid URL.";
+        }
+      }
+      if (nps.closingLogoUrl?.trim()) {
+        try {
+          new URL(nps.closingLogoUrl.trim());
+        } catch {
+          return "Closing logo URL must be a valid URL.";
+        }
+      }
+      if (
+        nps.contactFields !== undefined &&
+        (!Array.isArray(nps.contactFields) ||
+          nps.contactFields.length === 0 ||
+          nps.contactFields.some(
+            (field) =>
+              field !== "name" &&
+              field !== "email" &&
+              field !== "company" &&
+              field !== "title",
+          ))
+      ) {
+        return "Choose at least one contact field for promoters.";
+      }
+      if (nps.closingLinks) {
+        for (const link of nps.closingLinks) {
+          if (!link.label?.trim() || !link.url?.trim()) {
+            return "Each closing link needs a label and URL.";
+          }
+          try {
+            new URL(link.url.trim());
+          } catch {
+            return "Closing link URLs must be valid.";
+          }
+        }
+      }
+      return null;
+    }
+    case "CONTACT_INFO":
+      return null;
     default:
       return "Unsupported question type.";
   }
@@ -241,6 +362,8 @@ export function normalizeFormInput(input: FormInput): FormInput {
     slug: input.slug.trim(),
     title: input.title.trim(),
     description: input.description?.trim() || null,
+    themeId: input.themeId?.trim() || DEFAULT_THEME_ID,
+    anonymous: Boolean(input.anonymous),
     questions: input.questions.map((question, index) => ({
       ...(question.id ? { id: question.id } : {}),
       order: index + 1,
@@ -258,8 +381,12 @@ function normalizeQuestionOptions(
   type: QuestionType,
   options: QuestionOptions,
 ): QuestionOptions {
-  switch (type) {
-    case QuestionType.SCALE: {
+  if (!isQuestionTypeValue(type)) {
+    return options;
+  }
+
+  switch (type as QuestionTypeValue) {
+    case "SCALE": {
       const scale = options as ScaleOptions;
       return {
         min: scale.min,
@@ -272,8 +399,8 @@ function normalizeQuestionOptions(
           : {}),
       };
     }
-    case QuestionType.SINGLE_CHOICE:
-    case QuestionType.MULTIPLE_CHOICE: {
+    case "SINGLE_CHOICE":
+    case "MULTIPLE_CHOICE": {
       const choice = options as SingleChoiceOptions | MultipleChoiceOptions;
       const normalized: MultipleChoiceOptions | SingleChoiceOptions = {
         choices: choice.choices.map((item) => ({
@@ -281,7 +408,7 @@ function normalizeQuestionOptions(
           label: item.label.trim(),
         })),
       };
-      if (type === QuestionType.MULTIPLE_CHOICE) {
+      if (type === "MULTIPLE_CHOICE") {
         const multi = options as MultipleChoiceOptions;
         return {
           ...normalized,
@@ -291,7 +418,7 @@ function normalizeQuestionOptions(
       }
       return normalized;
     }
-    case QuestionType.SHORT_TEXT: {
+    case "SHORT_TEXT": {
       const text = options as ShortTextOptions;
       return {
         ...(text.placeholder?.trim()
@@ -300,7 +427,7 @@ function normalizeQuestionOptions(
         ...(text.maxLength ? { maxLength: text.maxLength } : {}),
       };
     }
-    case QuestionType.SLIDER: {
+    case "SLIDER": {
       const slider = options as SliderOptions;
       return {
         min: slider.min,
@@ -314,7 +441,7 @@ function normalizeQuestionOptions(
           : {}),
       };
     }
-    case QuestionType.HEATMAP: {
+    case "HEATMAP": {
       const heatmap = options as HeatmapOptions;
       return {
         imageUrl: heatmap.imageUrl.trim(),
@@ -322,6 +449,47 @@ function normalizeQuestionOptions(
         maxClicks: heatmap.maxClicks ?? 1,
       };
     }
+    case "ATTACHMENT": {
+      const attachment = options as AttachmentOptions;
+      return {
+        allowedKinds:
+          attachment.allowedKinds?.filter(
+            (kind) => kind === "image" || kind === "video" || kind === "document",
+          ) ?? ["image", "video", "document"],
+        maxSizeMb: Math.max(1, Math.round(attachment.maxSizeMb ?? 25)),
+      };
+    }
+    case "NPS": {
+      const nps = options as NpsOptions;
+      const contactFields = (nps.contactFields ?? ["name", "email", "company"]).filter(
+        (field): field is NpsContactField =>
+          field === "name" ||
+          field === "email" ||
+          field === "company" ||
+          field === "title",
+      );
+      const closingLinks = (nps.closingLinks ?? [])
+        .map((link) => ({
+          label: link.label.trim(),
+          url: link.url.trim(),
+        }))
+        .filter((link) => link.label && link.url);
+
+      return {
+        firmName: nps.firmName.trim(),
+        followUpPrompt: nps.followUpPrompt?.trim() || DEFAULT_NPS_FOLLOW_UP_PROMPT,
+        promoterRedirectUrl: nps.promoterRedirectUrl?.trim() || "",
+        contactFields: contactFields.length > 0 ? contactFields : ["name", "email"],
+        closingTitle: nps.closingTitle?.trim() || DEFAULT_NPS_CLOSING_TITLE,
+        closingBody: nps.closingBody?.trim() || DEFAULT_NPS_CLOSING_BODY,
+        closingLinks,
+        ...(nps.closingLogoUrl?.trim()
+          ? { closingLogoUrl: nps.closingLogoUrl.trim() }
+          : {}),
+      };
+    }
+    case "CONTACT_INFO":
+      return {};
     default:
       return options;
   }
