@@ -4,7 +4,7 @@ dockerfilePath = "Dockerfile"
 
 [deploy]
 preDeployCommand = "npx prisma migrate deploy && npx prisma db seed"
-# standalone image entrypoint (not next start — that expects a full Next install layout)
-startCommand = "node server.js"
+# Use next start (same as working Nixpacks deploy) so AUTH_* runtime env is visible.
+startCommand = "npx next start --hostname 0.0.0.0"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
