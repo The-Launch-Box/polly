@@ -19,7 +19,7 @@ export default async function ThankYouPage({ params }: ThankYouPageProps) {
   return (
     <SurveyThemeProvider themeId={form.themeId}>
       <main className="min-h-screen">
-        <SurveyHeader title={form.title} showHomeLink={false} />
+        <SurveyHeader title={form.title} />
 
         <div className="flex min-h-[60vh] items-center justify-center px-4 py-10">
           <div
@@ -50,7 +50,7 @@ export default async function ThankYouPage({ params }: ThankYouPageProps) {
             >
               Your response has been recorded.
             </p>
-            <div className="mt-6 flex flex-col gap-2">
+            <div className="mt-6">
               <Link
                 href={`/q/${slug}`}
                 className="rounded-lg border px-4 py-2 text-sm font-medium transition hover:opacity-90"
@@ -61,13 +61,6 @@ export default async function ThankYouPage({ params }: ThankYouPageProps) {
                 }}
               >
                 Submit another response
-              </Link>
-              <Link
-                href="/"
-                className="rounded-lg px-4 py-2 text-sm font-medium transition hover:opacity-80"
-                style={{ color: "var(--theme-text-muted)" }}
-              >
-                Back to home
               </Link>
             </div>
           </div>

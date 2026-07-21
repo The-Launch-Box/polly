@@ -1,18 +1,15 @@
 "use client";
 
-import Link from "next/link";
 import { useSurveyTheme } from "@/components/SurveyThemeProvider";
 
 type SurveyHeaderProps = {
   title: string;
   subtitle?: string;
-  showHomeLink?: boolean;
 };
 
 export function SurveyHeader({
   title,
   subtitle = "Survey",
-  showHomeLink = true,
 }: SurveyHeaderProps) {
   const theme = useSurveyTheme();
 
@@ -51,15 +48,6 @@ export function SurveyHeader({
             </h1>
           </div>
         </div>
-        {showHomeLink && (
-          <Link
-            href="/"
-            className="shrink-0 text-sm transition hover:opacity-80"
-            style={{ color: "var(--theme-text-muted)" }}
-          >
-            Home
-          </Link>
-        )}
       </div>
     </header>
   );
