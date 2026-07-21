@@ -1,10 +1,9 @@
 [build]
-builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile"
+builder = "nixpacks"
+buildCommand = "npm ci && npx prisma generate && npm run build"
 
 [deploy]
 preDeployCommand = "npx prisma migrate deploy && npx prisma db seed"
-# Use next start (same as working Nixpacks deploy) so AUTH_* runtime env is visible.
-startCommand = "npx next start --hostname 0.0.0.0"
+startCommand = "npm run start"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
