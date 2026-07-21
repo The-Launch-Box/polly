@@ -19,7 +19,7 @@ export default async function HomePage() {
           Internal forms
         </p>
         <h1 className="mt-2 text-3xl font-semibold text-zinc-900">
-          Typeform Alt
+          Survey App
         </h1>
         <p className="mt-3 text-sm leading-relaxed text-zinc-600">
           Self-hosted one-question-at-a-time surveys for internal teams.

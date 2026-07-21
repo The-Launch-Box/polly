@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Typeform Alt",
+  title: "Survey App",
   description: "Internal one-question-at-a-time surveys",
 };
 
