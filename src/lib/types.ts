@@ -85,7 +85,10 @@ export type NpsAnswer = {
   contact?: Partial<Record<NpsContactField, string>>;
 };
 
-export type ContactInfoOptions = Record<string, never>;
+export type ContactInfoOptions = {
+  companyMode?: "free" | "dropdown";
+  companies?: string[];
+};
 
 export type ContactInfoAnswer = {
   firstName: string;
