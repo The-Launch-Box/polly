@@ -43,6 +43,7 @@ import type {
   NpsOptions,
   NpsContactField,
   NpsLink,
+  ContactInfoOptions,
   BranchCondition,
   BranchOperator,
   QuestionVisibility,
@@ -1385,19 +1386,84 @@ function QuestionOptionsEditor({
   }
 
   if (type === "CONTACT_INFO") {
+    const contactInfo = options as ContactInfoOptions;
+    const companyMode = contactInfo.companyMode ?? "free";
+    const companies = contactInfo.companies ?? [];
     return (
-      <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
-        <p className="font-medium text-zinc-800">Fields included</p>
-        <ul className="mt-2 list-inside list-disc space-y-1">
-          <li>First and last name</li>
-          <li>Company email</li>
-          <li>Business name</li>
-        </ul>
-        {anonymous && (
-          <p className="mt-3 text-amber-700">
-            Contact information questions are not allowed while anonymous
-            responses are enabled.
-          </p>
+      <div className="space-y-4">
+        <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
+          <p className="font-medium text-zinc-800">Fields included</p>
+          <ul className="mt-2 list-inside list-disc space-y-1">
+            <li>First and last name</li>
+            <li>Company email</li>
+            <li>Business name</li>
+          </ul>
+          {anonymous && (
+            <p className="mt-3 text-amber-700">
+              Contact information questions are not allowed while anonymous
+              responses are enabled.
+            </p>
+          )}
+        </div>
+        <Field label="Business name mode" htmlFor="contact-info-company-mode">
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2 text-sm text-zinc-700">
+              <input
+                type="radio"
+                name="contact-info-company-mode"
+                value="free"
+                checked={companyMode === "free"}
+                onChange={() => onChange({ ...contactInfo, companyMode: "free" })}
+              />
+              Free text
+            </label>
+            <label className="flex items-center gap-2 text-sm text-zinc-700">
+              <input
+                type="radio"
+                name="contact-info-company-mode"
+                value="dropdown"
+                checked={companyMode === "dropdown"}
+                onChange={() => onChange({ ...contactInfo, companyMode: "dropdown" })}
+              />
+              Dropdown
+            </label>
+          </div>
+        </Field>
+        {companyMode === "dropdown" && (
+          <div className="space-y-2">
+            {companies.map((company, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <input
+                  value={company}
+                  onChange={(event) => {
+                    const next = [...companies];
+                    next[index] = event.target.value;
+                    onChange({ ...contactInfo, companies: next });
+                  }}
+                  className={inputClass()}
+                  placeholder={`Company ${index + 1}`}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = companies.filter((_, i) => i !== index);
+                    onChange({ ...contactInfo, companies: next });
+                  }}
+                  className="shrink-0 text-sm font-medium text-zinc-500 hover:text-zinc-800"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            <p className="text-xs text-zinc-500">&quot;Other&quot; is always included automatically.</p>
+            <button
+              type="button"
+              onClick={() => onChange({ ...contactInfo, companies: [...companies, ""] })}
+              className="text-sm font-medium text-zinc-700 underline"
+            >
+              Add company
+            </button>
+          </div>
         )}
       </div>
     );
