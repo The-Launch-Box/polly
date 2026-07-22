@@ -97,3 +97,24 @@ body {
     animation: none;
   }
 }
+
+/* Question card collapse/expand */
+.question-body-grid {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.question-body-grid.collapsed {
+  grid-template-rows: 0fr;
+}
+
+.question-body-grid > div {
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .question-body-grid {
+    transition: none;
+  }
+}

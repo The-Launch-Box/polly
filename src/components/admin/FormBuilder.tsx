@@ -118,6 +118,23 @@ export function FormBuilder({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(new Set());
+
+  function toggleCollapsed(key: string) {
+    setCollapsedKeys((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  }
+
+  function collapseAll() {
+    setCollapsedKeys(new Set(questions.map((q) => q.key)));
+  }
+
+  function expandAll() {
+    setCollapsedKeys(new Set());
+  }
 
   useEffect(() => {
     function onScroll() {
@@ -396,13 +413,33 @@ export function FormBuilder({
               One question per screen, in the order shown below.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={addQuestion}
-            className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-800 transition hover:border-zinc-500"
-          >
-            Add question
-          </button>
+          <div className="flex items-center gap-2">
+            {questions.length > 0 && (
+              <>
+                <button
+                  type="button"
+                  onClick={collapseAll}
+                  className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-800 transition hover:border-zinc-500"
+                >
+                  Collapse all
+                </button>
+                <button
+                  type="button"
+                  onClick={expandAll}
+                  className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-800 transition hover:border-zinc-500"
+                >
+                  Expand all
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              onClick={addQuestion}
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-800 transition hover:border-zinc-500"
+            >
+              Add question
+            </button>
+          </div>
         </div>
 
         {fieldErrors.questions && (
@@ -417,6 +454,8 @@ export function FormBuilder({
             total={questions.length}
             anonymous={anonymous}
             errors={fieldErrors}
+            collapsed={collapsedKeys.has(question.key)}
+            onToggleCollapse={() => toggleCollapsed(question.key)}
             precedingQuestions={questions.slice(0, index).map((q, i) => ({
               id: q.id ?? q.key,
               position: i + 1,
@@ -503,6 +542,8 @@ function QuestionEditor({
   total,
   anonymous,
   errors,
+  collapsed,
+  onToggleCollapse,
   precedingQuestions,
   onChange,
   onTypeChange,
@@ -514,6 +555,8 @@ function QuestionEditor({
   total: number;
   anonymous: boolean;
   errors: Record<string, string>;
+  collapsed: boolean;
+  onToggleCollapse: () => void;
   precedingQuestions: PrecedingQuestion[];
   onChange: (patch: Partial<QuestionDraft>) => void;
   onTypeChange: (type: QuestionType) => void;
@@ -524,13 +567,38 @@ function QuestionEditor({
   const promptError = errors[`${prefix}.prompt`];
   const optionsError = errors[`${prefix}.options`];
   const visibilityError = errors[`${prefix}.visibility`];
+  const hasError = Object.keys(errors).some((k) => k.startsWith(prefix));
+
+  const promptSummary = question.prompt.trim() || "(untitled)";
+
+  const collapsedWithError = collapsed && hasError;
 
   return (
-    <article className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-          Question {index + 1}
-        </p>
+    <article className={`rounded-xl border bg-white shadow-sm ${collapsedWithError ? "border-red-300" : "border-zinc-200"}`}>
+      <div className={`flex flex-wrap items-center justify-between gap-3 p-5 ${collapsedWithError ? "rounded-xl bg-red-50" : ""}`}>
+        <button
+          type="button"
+          onClick={onToggleCollapse}
+          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+          aria-expanded={!collapsed}
+        >
+          <span className="shrink-0 text-xs font-medium uppercase tracking-wide text-zinc-400">
+            Q{index + 1}
+          </span>
+          <span className="shrink-0 rounded bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">
+            {QUESTION_TYPE_LABELS[question.type]}
+          </span>
+          {collapsed && (
+            <span className="truncate text-sm text-zinc-700">
+              {promptSummary}
+            </span>
+          )}
+          <span
+            className={`ml-auto shrink-0 text-xs text-zinc-400 transition-transform duration-350 ease-[cubic-bezier(0.22,1,0.36,1)] ${collapsed ? "" : "rotate-90"}`}
+          >
+            ▶
+          </span>
+        </button>
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -561,7 +629,10 @@ function QuestionEditor({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+      <div className={`question-body-grid${collapsed ? " collapsed" : ""}`}>
+        <div>
+        <div className="border-t border-zinc-100 px-5 pb-5 pt-4">
+      <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Type" htmlFor={`type-${question.key}`}>
           <select
             id={`type-${question.key}`}
@@ -631,6 +702,9 @@ function QuestionEditor({
           error={visibilityError}
           onChange={(visibility) => onChange({ visibility })}
         />
+        </div>
+        </div>
+        </div>
       </div>
     </article>
   );
