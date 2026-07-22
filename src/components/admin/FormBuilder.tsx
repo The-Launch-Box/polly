@@ -417,6 +417,16 @@ export function FormBuilder({
             onMove={(direction) => moveQuestion(question.key, direction)}
           />
         ))}
+
+        {questions.length > 0 && (
+          <button
+            type="button"
+            onClick={addQuestion}
+            className="flex w-full items-center justify-center rounded-lg border border-dashed border-zinc-300 py-3 text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-600"
+          >
+            <span className="text-xl leading-none">+</span>
+          </button>
+        )}
       </section>
 
       {isEdit && (
