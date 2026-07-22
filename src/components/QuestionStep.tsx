@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { formatFileSize, getAcceptAttribute } from "@/lib/attachments-shared";
 import {
   emptyContactInfoAnswer,
@@ -563,7 +564,14 @@ function ContactInfoInput({
   const companyMode = options?.companyMode ?? "free";
   const companies = options?.companies ?? [];
   const isDropdown = companyMode === "dropdown" && companies.length > 0;
-  const isOtherSelected = isDropdown && value.businessName !== "" && !companies.includes(value.businessName);
+
+  const [selectValue, setSelectValue] = useState<string>(() => {
+    if (!isDropdown || value.businessName === "") return "";
+    if (companies.includes(value.businessName)) return value.businessName;
+    return "__other__";
+  });
+
+  const isOtherSelected = selectValue === "__other__";
 
   function updateField(field: keyof ContactInfoAnswer, fieldValue: string) {
     onChange({ ...value, [field]: fieldValue });
@@ -631,13 +639,12 @@ function ContactInfoInput({
         {isDropdown ? (
           <div className="space-y-2">
             <select
-              value={value.businessName === "" ? "" : isOtherSelected ? "__other__" : value.businessName}
+              value={selectValue}
               onChange={(event) => {
-                if (event.target.value === "__other__") {
-                  updateField("businessName", "");
-                } else {
-                  updateField("businessName", event.target.value);
-                }
+                const v = event.target.value;
+                setSelectValue(v);
+                if (v !== "__other__") updateField("businessName", v);
+                else updateField("businessName", "");
               }}
               className="w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:ring-2"
               style={inputStyle}
