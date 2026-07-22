@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { QuestionType } from "@/generated/prisma/enums";
 import {
@@ -117,6 +117,15 @@ export function FormBuilder({
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    function onScroll() {
+      setShowScrollTop(window.scrollY > 300);
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const previewUrl = useMemo(() => {
     const value = slug.trim();
@@ -462,6 +471,16 @@ export function FormBuilder({
             : "You'll be taken to the live survey when it's ready."}
         </p>
       </div>
+      {showScrollTop && (
+        <button
+          type="button"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          className="fixed bottom-6 right-6 flex h-10 w-10 items-center justify-center rounded-full bg-zinc-900 text-white shadow-lg transition hover:bg-zinc-700"
+          aria-label="Scroll to top"
+        >
+          ↑
+        </button>
+      )}
     </form>
   );
 }
