@@ -202,15 +202,28 @@ export function FormBuilder({
   }
 
   function moveQuestion(key: string, direction: -1 | 1) {
+    const index = questions.findIndex((q) => q.key === key);
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= questions.length) return;
+
     setQuestions((current) => {
-      const index = current.findIndex((question) => question.key === key);
-      const target = index + direction;
-      if (index < 0 || target < 0 || target >= current.length) {
-        return current;
-      }
       const next = [...current];
       [next[index], next[target]] = [next[target], next[index]];
       return next;
+    });
+
+    setFieldErrors((current) => {
+      const remapped: Record<string, string> = {};
+      for (const [k, v] of Object.entries(current)) {
+        if (k.startsWith(`questions.${index}.`)) {
+          remapped[k.replace(`questions.${index}.`, `questions.${target}.`)] = v;
+        } else if (k.startsWith(`questions.${target}.`)) {
+          remapped[k.replace(`questions.${target}.`, `questions.${index}.`)] = v;
+        } else {
+          remapped[k] = v;
+        }
+      }
+      return remapped;
     });
   }
 
