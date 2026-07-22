@@ -563,7 +563,7 @@ function ContactInfoInput({
   const companyMode = options?.companyMode ?? "free";
   const companies = options?.companies ?? [];
   const isDropdown = companyMode === "dropdown" && companies.length > 0;
-  const isOtherSelected = isDropdown && !companies.includes(value.businessName);
+  const isOtherSelected = isDropdown && value.businessName !== "" && !companies.includes(value.businessName);
 
   function updateField(field: keyof ContactInfoAnswer, fieldValue: string) {
     onChange({ ...value, [field]: fieldValue });
@@ -631,7 +631,7 @@ function ContactInfoInput({
         {isDropdown ? (
           <div className="space-y-2">
             <select
-              value={isOtherSelected ? "__other__" : value.businessName}
+              value={value.businessName === "" ? "" : isOtherSelected ? "__other__" : value.businessName}
               onChange={(event) => {
                 if (event.target.value === "__other__") {
                   updateField("businessName", "");
@@ -642,7 +642,7 @@ function ContactInfoInput({
               className="w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:ring-2"
               style={inputStyle}
             >
-              <option value="" disabled>Select a company...</option>
+              <option value="" disabled>Select your company...</option>
               {companies.map((company) => (
                 <option key={company} value={company}>
                   {company}
