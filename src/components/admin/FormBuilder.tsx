@@ -285,23 +285,26 @@ export function FormBuilder({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
-      <section className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-zinc-900">Survey details</h2>
-        <p className="mt-1 text-sm text-zinc-500">
-          Respondents will take the survey at{" "}
-          <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-700">
-            {previewUrl}
-          </code>
-        </p>
-        {isEdit && submissionCount > 0 && (
-          <p className="mt-2 text-sm text-amber-700">
-            This survey has {submissionCount} submission
-            {submissionCount === 1 ? "" : "s"}. Questions with existing
-            responses cannot be removed.
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold text-zinc-900">Survey details</h2>
+          <p className="mt-1 text-sm text-zinc-500">
+            Respondents will take the survey at{" "}
+            <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-700">
+              {previewUrl}
+            </code>
           </p>
-        )}
+          {isEdit && submissionCount > 0 && (
+            <p className="mt-2 text-sm text-amber-700">
+              This survey has {submissionCount} submission
+              {submissionCount === 1 ? "" : "s"}. Questions with existing
+              responses cannot be removed.
+            </p>
+          )}
+        </div>
 
-        <div className="mt-6 space-y-4">
+        <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+          <div className="space-y-4">
           <Field
             label="Title"
             htmlFor="title"
@@ -381,6 +384,7 @@ export function FormBuilder({
               Keep respondent identity private
             </label>
           </Field>
+          </div>
         </div>
       </section>
 
