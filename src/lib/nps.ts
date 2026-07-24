@@ -104,7 +104,7 @@ export function validateNpsAnswer(
     return required ? "This question is required." : null;
   }
 
-  if (typeof value !== "object" || value === null) {
+  if (typeof value !== "object") {
     return "Invalid NPS response.";
   }
 

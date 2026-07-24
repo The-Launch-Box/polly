@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { QuestionType } from "@/generated/prisma/enums";
 import {
@@ -23,6 +23,13 @@ import {
 } from "@/lib/nps";
 import { DEFAULT_CONTACT_INFO_PROMPT } from "@/lib/contact-info";
 import { ThemePicker } from "@/components/admin/ThemePicker";
+import { WebhookSection, type WebhookInput } from "@/components/admin/WebhookSection";
+import {
+  BRANCH_OPERATOR_LABELS,
+  operatorRequiresValue,
+  operatorUsesChoiceValue,
+  operatorsForType,
+} from "@/lib/branching";
 import type {
   QuestionOptions,
   ScaleOptions,
@@ -36,18 +43,27 @@ import type {
   NpsOptions,
   NpsContactField,
   NpsLink,
+  BranchCondition,
+  BranchOperator,
+  QuestionVisibility,
 } from "@/lib/types";
+import { isChoiceListOptions } from "@/lib/types";
 
 type QuestionDraft = FormQuestionInput & { key: string };
 
 function createQuestionDraft(type: QuestionType = "SCALE"): QuestionDraft {
+  // A stable id is assigned up front (not just for saved questions) so branching
+  // rules can reference this question even before the form is first saved.
+  const id = crypto.randomUUID();
   return {
-    key: crypto.randomUUID(),
+    key: id,
+    id,
     order: 0,
     type,
     prompt: "",
     required: true,
     options: defaultOptionsForType(type),
+    visibility: null,
   };
 }
 
@@ -60,6 +76,7 @@ function createQuestionDraftFromExisting(question: FormQuestionInput): QuestionD
     prompt: question.prompt,
     required: question.required,
     options: question.options,
+    visibility: question.visibility ?? null,
   };
 }
 
@@ -74,6 +91,7 @@ type FormBuilderProps = {
   originalSlug?: string;
   initialData?: FormInput;
   submissionCount?: number;
+  initialWebhooks?: WebhookInput[];
 };
 
 export function FormBuilder({
@@ -81,6 +99,7 @@ export function FormBuilder({
   originalSlug,
   initialData,
   submissionCount = 0,
+  initialWebhooks = [],
 }: FormBuilderProps) {
   const isEdit = mode === "edit";
   const router = useRouter();
@@ -98,6 +117,32 @@ export function FormBuilder({
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(new Set());
+
+  function toggleCollapsed(key: string) {
+    setCollapsedKeys((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  }
+
+  function collapseAll() {
+    setCollapsedKeys(new Set(questions.map((q) => q.key)));
+  }
+
+  function expandAll() {
+    setCollapsedKeys(new Set());
+  }
+
+  useEffect(() => {
+    function onScroll() {
+      setShowScrollTop(window.scrollY > 300);
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const previewUrl = useMemo(() => {
     const value = slug.trim();
@@ -157,15 +202,28 @@ export function FormBuilder({
   }
 
   function moveQuestion(key: string, direction: -1 | 1) {
+    const index = questions.findIndex((q) => q.key === key);
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= questions.length) return;
+
     setQuestions((current) => {
-      const index = current.findIndex((question) => question.key === key);
-      const target = index + direction;
-      if (index < 0 || target < 0 || target >= current.length) {
-        return current;
-      }
       const next = [...current];
       [next[index], next[target]] = [next[target], next[index]];
       return next;
+    });
+
+    setFieldErrors((current) => {
+      const remapped: Record<string, string> = {};
+      for (const [k, v] of Object.entries(current)) {
+        if (k.startsWith(`questions.${index}.`)) {
+          remapped[k.replace(`questions.${index}.`, `questions.${target}.`)] = v;
+        } else if (k.startsWith(`questions.${target}.`)) {
+          remapped[k.replace(`questions.${target}.`, `questions.${index}.`)] = v;
+        } else {
+          remapped[k] = v;
+        }
+      }
+      return remapped;
     });
   }
 
@@ -195,6 +253,7 @@ export function FormBuilder({
           prompt: question.prompt,
           required: question.required,
           options: question.options,
+          visibility: question.visibility ?? null,
         };
       }),
     };
@@ -256,23 +315,26 @@ export function FormBuilder({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
-      <section className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-zinc-900">Survey details</h2>
-        <p className="mt-1 text-sm text-zinc-500">
-          Respondents will take the survey at{" "}
-          <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-700">
-            {previewUrl}
-          </code>
-        </p>
-        {isEdit && submissionCount > 0 && (
-          <p className="mt-2 text-sm text-amber-700">
-            This survey has {submissionCount} submission
-            {submissionCount === 1 ? "" : "s"}. Questions with existing
-            responses cannot be removed.
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold text-zinc-900">Survey details</h2>
+          <p className="mt-1 text-sm text-zinc-500">
+            Respondents will take the survey at{" "}
+            <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-700">
+              {previewUrl}
+            </code>
           </p>
-        )}
+          {isEdit && submissionCount > 0 && (
+            <p className="mt-2 text-sm text-amber-700">
+              This survey has {submissionCount} submission
+              {submissionCount === 1 ? "" : "s"}. Questions with existing
+              responses cannot be removed.
+            </p>
+          )}
+        </div>
 
-        <div className="mt-6 space-y-4">
+        <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+          <div className="space-y-4">
           <Field
             label="Title"
             htmlFor="title"
@@ -352,6 +414,7 @@ export function FormBuilder({
               Keep respondent identity private
             </label>
           </Field>
+          </div>
         </div>
       </section>
 
@@ -363,13 +426,33 @@ export function FormBuilder({
               One question per screen, in the order shown below.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={addQuestion}
-            className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-800 transition hover:border-zinc-500"
-          >
-            Add question
-          </button>
+          <div className="flex items-center gap-2">
+            {questions.length > 0 && (
+              <>
+                <button
+                  type="button"
+                  onClick={collapseAll}
+                  className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-800 transition hover:border-zinc-500"
+                >
+                  Collapse all
+                </button>
+                <button
+                  type="button"
+                  onClick={expandAll}
+                  className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-800 transition hover:border-zinc-500"
+                >
+                  Expand all
+                </button>
+              </>
+            )}
+            <button
+              type="button"
+              onClick={addQuestion}
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-800 transition hover:border-zinc-500"
+            >
+              Add question
+            </button>
+          </div>
         </div>
 
         {fieldErrors.questions && (
@@ -384,13 +467,39 @@ export function FormBuilder({
             total={questions.length}
             anonymous={anonymous}
             errors={fieldErrors}
+            collapsed={collapsedKeys.has(question.key)}
+            onToggleCollapse={() => toggleCollapsed(question.key)}
+            precedingQuestions={questions.slice(0, index).map((q, i) => ({
+              id: q.id ?? q.key,
+              position: i + 1,
+              prompt: q.prompt,
+              type: q.type,
+              options: q.options,
+            }))}
             onChange={(patch) => updateQuestion(question.key, patch)}
             onTypeChange={(type) => changeQuestionType(question.key, type)}
             onRemove={() => removeQuestion(question.key)}
             onMove={(direction) => moveQuestion(question.key, direction)}
           />
         ))}
+
+        {questions.length > 0 && (
+          <button
+            type="button"
+            onClick={addQuestion}
+            className="flex w-full items-center justify-center rounded-lg border border-dashed border-zinc-300 py-3 text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-600"
+          >
+            <span className="text-xl leading-none">+</span>
+          </button>
+        )}
       </section>
+
+      {isEdit && (
+        <WebhookSection
+          formSlug={originalSlug!}
+          initialWebhooks={initialWebhooks}
+        />
+      )}
 
       {error && (
         <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -418,9 +527,27 @@ export function FormBuilder({
             : "You'll be taken to the live survey when it's ready."}
         </p>
       </div>
+      {showScrollTop && (
+        <button
+          type="button"
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          className="fixed bottom-6 right-6 flex h-10 w-10 items-center justify-center rounded-full bg-zinc-900 text-white shadow-lg transition hover:bg-zinc-700"
+          aria-label="Scroll to top"
+        >
+          ↑
+        </button>
+      )}
     </form>
   );
 }
+
+type PrecedingQuestion = {
+  id: string;
+  position: number;
+  prompt: string;
+  type: QuestionType;
+  options: QuestionOptions;
+};
 
 function QuestionEditor({
   index,
@@ -428,6 +555,9 @@ function QuestionEditor({
   total,
   anonymous,
   errors,
+  collapsed,
+  onToggleCollapse,
+  precedingQuestions,
   onChange,
   onTypeChange,
   onRemove,
@@ -438,6 +568,9 @@ function QuestionEditor({
   total: number;
   anonymous: boolean;
   errors: Record<string, string>;
+  collapsed: boolean;
+  onToggleCollapse: () => void;
+  precedingQuestions: PrecedingQuestion[];
   onChange: (patch: Partial<QuestionDraft>) => void;
   onTypeChange: (type: QuestionType) => void;
   onRemove: () => void;
@@ -446,13 +579,39 @@ function QuestionEditor({
   const prefix = `questions.${index}`;
   const promptError = errors[`${prefix}.prompt`];
   const optionsError = errors[`${prefix}.options`];
+  const visibilityError = errors[`${prefix}.visibility`];
+  const hasError = Object.keys(errors).some((k) => k.startsWith(prefix));
+
+  const promptSummary = question.prompt.trim() || "(untitled)";
+
+  const collapsedWithError = collapsed && hasError;
 
   return (
-    <article className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-          Question {index + 1}
-        </p>
+    <article className={`rounded-xl border bg-white shadow-sm ${collapsedWithError ? "border-red-300" : "border-zinc-200"}`}>
+      <div className={`flex flex-wrap items-center justify-between gap-3 p-5 ${collapsedWithError ? "rounded-xl bg-red-50" : ""}`}>
+        <button
+          type="button"
+          onClick={onToggleCollapse}
+          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+          aria-expanded={!collapsed}
+        >
+          <span className="shrink-0 text-xs font-medium uppercase tracking-wide text-zinc-400">
+            Q{index + 1}
+          </span>
+          <span className="shrink-0 rounded bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">
+            {QUESTION_TYPE_LABELS[question.type]}
+          </span>
+          {collapsed && (
+            <span className="truncate text-sm text-zinc-700">
+              {promptSummary}
+            </span>
+          )}
+          <span
+            className={`ml-auto shrink-0 text-xs text-zinc-400 transition-transform duration-350 ease-[cubic-bezier(0.22,1,0.36,1)] ${collapsed ? "" : "rotate-90"}`}
+          >
+            ▶
+          </span>
+        </button>
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -483,7 +642,10 @@ function QuestionEditor({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+      <div className={`question-body-grid${collapsed ? " collapsed" : ""}`}>
+        <div>
+        <div className="border-t border-zinc-100 px-5 pb-5 pt-4">
+      <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Type" htmlFor={`type-${question.key}`}>
           <select
             id={`type-${question.key}`}
@@ -545,7 +707,268 @@ function QuestionEditor({
           <p className="mt-2 text-sm text-red-600">{optionsError}</p>
         )}
       </div>
+
+      <div className="mt-4 border-t border-zinc-100 pt-4">
+        <BranchingEditor
+          visibility={question.visibility ?? null}
+          precedingQuestions={precedingQuestions}
+          error={visibilityError}
+          onChange={(visibility) => onChange({ visibility })}
+        />
+        </div>
+        </div>
+        </div>
+      </div>
     </article>
+  );
+}
+
+const NO_PROMPT_LABEL = "(untitled question)";
+
+function BranchingEditor({
+  visibility,
+  precedingQuestions,
+  error,
+  onChange,
+}: {
+  visibility: QuestionVisibility | null;
+  precedingQuestions: PrecedingQuestion[];
+  error?: string;
+  onChange: (visibility: QuestionVisibility | null) => void;
+}) {
+  if (precedingQuestions.length === 0) {
+    return (
+      <div>
+        <p className="text-sm font-medium text-zinc-800">Branching</p>
+        <p className="mt-1 text-xs text-zinc-500">
+          The first question is always shown. Add more questions above this one
+          to make it appear only for certain answers.
+        </p>
+      </div>
+    );
+  }
+
+  const conditions = visibility?.conditions ?? [];
+  const match = visibility?.match ?? "all";
+  const byId = new Map(precedingQuestions.map((q) => [q.id, q]));
+
+  function emit(nextConditions: BranchCondition[], nextMatch = match) {
+    if (nextConditions.length === 0) {
+      onChange(null);
+      return;
+    }
+    onChange({ match: nextMatch, conditions: nextConditions });
+  }
+
+  function defaultConditionFor(target: PrecedingQuestion): BranchCondition {
+    const operator = operatorsForType(target.type)[0];
+    const condition: BranchCondition = { questionId: target.id, operator };
+    if (operatorRequiresValue(operator) && operatorUsesChoiceValue(target.type)) {
+      const first = isChoiceListOptions(target.options)
+        ? target.options.choices[0]
+        : undefined;
+      if (first) {
+        condition.value = first.value;
+      }
+    }
+    return condition;
+  }
+
+  function addCondition() {
+    emit([...conditions, defaultConditionFor(precedingQuestions[0])]);
+  }
+
+  function updateCondition(index: number, patch: Partial<BranchCondition>) {
+    const next = conditions.map((condition, i) =>
+      i === index ? { ...condition, ...patch } : condition,
+    );
+    emit(next);
+  }
+
+  function changeTarget(index: number, questionId: string) {
+    const target = byId.get(questionId);
+    if (!target) return;
+    const next = conditions.map((condition, i) =>
+      i === index ? defaultConditionFor(target) : condition,
+    );
+    emit(next);
+  }
+
+  function changeOperator(index: number, operator: BranchOperator) {
+    const condition = conditions[index];
+    const target = byId.get(condition.questionId);
+    const patch: Partial<BranchCondition> = { operator };
+    if (!operatorRequiresValue(operator)) {
+      patch.value = undefined;
+    } else if (
+      target &&
+      operatorUsesChoiceValue(target.type) &&
+      condition.value === undefined
+    ) {
+      const first = isChoiceListOptions(target.options)
+        ? target.options.choices[0]
+        : undefined;
+      patch.value = first?.value;
+    }
+    updateCondition(index, patch);
+  }
+
+  function removeCondition(index: number) {
+    emit(conditions.filter((_, i) => i !== index));
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <p className="text-sm font-medium text-zinc-800">Branching</p>
+          <p className="mt-0.5 text-xs text-zinc-500">
+            Only show this question when earlier answers match.
+          </p>
+        </div>
+        {conditions.length === 0 && (
+          <button
+            type="button"
+            onClick={addCondition}
+            className="rounded border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-800 transition hover:border-zinc-500"
+          >
+            Add rule
+          </button>
+        )}
+      </div>
+
+      {conditions.length > 0 && (
+        <div className="space-y-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+          {conditions.length > 1 && (
+            <label className="flex items-center gap-2 text-xs text-zinc-600">
+              Show this question when
+              <select
+                value={match}
+                onChange={(event) =>
+                  emit(conditions, event.target.value === "any" ? "any" : "all")
+                }
+                className="rounded border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900"
+              >
+                <option value="all">all</option>
+                <option value="any">any</option>
+              </select>
+              of these are true:
+            </label>
+          )}
+
+          {conditions.map((condition, index) => {
+            const target = byId.get(condition.questionId);
+            const targetType = target?.type;
+            const operators = targetType ? operatorsForType(targetType) : [];
+            const choices =
+              target && isChoiceListOptions(target.options)
+                ? target.options.choices
+                : [];
+            const showValue = operatorRequiresValue(condition.operator);
+            const useChoiceValue =
+              targetType !== undefined && operatorUsesChoiceValue(targetType);
+            const numericValue =
+              targetType === "SCALE" ||
+              targetType === "SLIDER" ||
+              targetType === "NPS";
+
+            return (
+              <div
+                key={index}
+                className="grid gap-2 sm:grid-cols-[1fr_auto] sm:items-start"
+              >
+                <div className="grid gap-2 sm:grid-cols-3">
+                  <select
+                    value={condition.questionId}
+                    onChange={(event) => changeTarget(index, event.target.value)}
+                    className={inputClass()}
+                    aria-label="Question"
+                  >
+                    {precedingQuestions.map((q) => (
+                      <option key={q.id} value={q.id}>
+                        Q{q.position}: {q.prompt.trim() || NO_PROMPT_LABEL}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={condition.operator}
+                    onChange={(event) =>
+                      changeOperator(index, event.target.value as BranchOperator)
+                    }
+                    className={inputClass()}
+                    aria-label="Condition"
+                  >
+                    {operators.map((operator) => (
+                      <option key={operator} value={operator}>
+                        {BRANCH_OPERATOR_LABELS[operator]}
+                      </option>
+                    ))}
+                  </select>
+
+                  {showValue ? (
+                    useChoiceValue ? (
+                      <select
+                        value={String(condition.value ?? "")}
+                        onChange={(event) =>
+                          updateCondition(index, { value: event.target.value })
+                        }
+                        className={inputClass()}
+                        aria-label="Value"
+                      >
+                        <option value="">Select…</option>
+                        {choices.map((choice) => (
+                          <option key={choice.value} value={choice.value}>
+                            {choice.label || choice.value}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type={numericValue ? "number" : "text"}
+                        value={String(condition.value ?? "")}
+                        onChange={(event) =>
+                          updateCondition(index, {
+                            value: numericValue
+                              ? event.target.value === ""
+                                ? undefined
+                                : Number(event.target.value)
+                              : event.target.value,
+                          })
+                        }
+                        className={inputClass()}
+                        placeholder="Value"
+                        aria-label="Value"
+                      />
+                    )
+                  ) : (
+                    <div />
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => removeCondition(index)}
+                  className="rounded border border-zinc-200 px-3 py-2 text-xs text-zinc-600 hover:border-zinc-400"
+                >
+                  Remove
+                </button>
+              </div>
+            );
+          })}
+
+          <button
+            type="button"
+            onClick={addCondition}
+            className="text-sm font-medium text-zinc-700 underline-offset-2 hover:underline"
+          >
+            Add condition
+          </button>
+        </div>
+      )}
+
+      {error && <p className="text-sm text-red-600">{error}</p>}
+    </div>
   );
 }
 

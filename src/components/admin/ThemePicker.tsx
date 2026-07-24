@@ -88,8 +88,11 @@ function ThemePreview({ theme }: { theme: CompanyTheme }) {
         </p>
         <div className="flex gap-2">
           <span
-            className="rounded-lg px-3 py-1.5 text-xs font-medium text-white"
-            style={{ backgroundColor: theme.colors.primary }}
+            className="rounded-lg px-3 py-1.5 text-xs font-medium"
+            style={{
+              backgroundColor: theme.colors.primary,
+              color: theme.colors.primaryForeground ?? "#ffffff",
+            }}
           >
             Selected
           </span>

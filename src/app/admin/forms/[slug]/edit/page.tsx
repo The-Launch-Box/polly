@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { FormBuilder } from "@/components/admin/FormBuilder";
 import { prisma } from "@/lib/prisma";
-import type { QuestionOptions } from "@/lib/types";
+import type { QuestionOptions, QuestionVisibility } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +19,7 @@ export default async function EditFormPage({ params }: EditFormPageProps) {
       questions: {
         orderBy: { order: "asc" },
       },
+      webhooks: true,
       _count: {
         select: { submissions: true },
       },
@@ -54,6 +55,13 @@ export default async function EditFormPage({ params }: EditFormPageProps) {
           mode="edit"
           originalSlug={form.slug}
           submissionCount={form._count.submissions}
+          initialWebhooks={form.webhooks.map((wh) => ({
+            id: wh.id,
+            name: wh.name,
+            url: wh.url,
+            includeAnswers: wh.includeAnswers,
+            secret: wh.secret,
+          }))}
           initialData={{
             slug: form.slug,
             title: form.title,
@@ -67,6 +75,7 @@ export default async function EditFormPage({ params }: EditFormPageProps) {
               prompt: question.prompt,
               required: question.required,
               options: question.options as QuestionOptions,
+              visibility: question.visibility as QuestionVisibility | null,
             })),
           }}
         />

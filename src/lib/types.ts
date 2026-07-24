@@ -105,6 +105,32 @@ export type QuestionOptions =
   | NpsOptions
   | ContactInfoOptions;
 
+export type BranchOperator =
+  | "equals"
+  | "not_equals"
+  | "includes"
+  | "not_includes"
+  | "greater_than"
+  | "greater_than_or_equal"
+  | "less_than"
+  | "less_than_or_equal"
+  | "answered"
+  | "not_answered";
+
+export type BranchCondition = {
+  // The id of an earlier question whose answer this condition inspects.
+  questionId: string;
+  operator: BranchOperator;
+  // Comparison target. Omitted for the answered/not_answered operators.
+  value?: string | number;
+};
+
+export type QuestionVisibility = {
+  // "all" = every condition must hold (AND); "any" = at least one (OR).
+  match: "all" | "any";
+  conditions: BranchCondition[];
+};
+
 export type FormQuestion = {
   id: string;
   order: number;
@@ -112,7 +138,25 @@ export type FormQuestion = {
   prompt: string;
   required: boolean;
   options: QuestionOptions | null;
+  visibility: QuestionVisibility | null;
 };
+
+export const BRANCH_OPERATORS: readonly BranchOperator[] = [
+  "equals",
+  "not_equals",
+  "includes",
+  "not_includes",
+  "greater_than",
+  "greater_than_or_equal",
+  "less_than",
+  "less_than_or_equal",
+  "answered",
+  "not_answered",
+];
+
+export function isBranchOperator(value: unknown): value is BranchOperator {
+  return typeof value === "string" && BRANCH_OPERATORS.includes(value as BranchOperator);
+}
 
 export type FormPayload = {
   slug: string;

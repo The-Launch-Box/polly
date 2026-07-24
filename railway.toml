@@ -1,10 +1,9 @@
 [build]
-builder = "DOCKERFILE"
-dockerfilePath = "Dockerfile"
+builder = "nixpacks"
+buildCommand = "npm ci && npx prisma generate && npm run build"
 
 [deploy]
 preDeployCommand = "npx prisma migrate deploy && npx prisma db seed"
-# standalone image entrypoint (not next start — that expects a full Next install layout)
-startCommand = "node server.js"
+startCommand = "npm run start"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3

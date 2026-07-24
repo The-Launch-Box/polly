@@ -46,12 +46,6 @@ export async function updateFormBySlug(
 
     const existingById = new Map(form.questions.map((question) => [question.id, question]));
 
-    for (const question of normalized.questions) {
-      if (question.id && !existingById.has(question.id)) {
-        throw new FormUpdateError("One or more questions are invalid.", "INVALID_QUESTION");
-      }
-    }
-
     const incomingIds = new Set(
       normalized.questions
         .map((question) => question.id)
@@ -107,9 +101,12 @@ export async function updateFormBySlug(
         prompt: question.prompt,
         required: question.required,
         options: question.options as Prisma.InputJsonValue,
+        visibility: question.visibility
+          ? (question.visibility as Prisma.InputJsonValue)
+          : Prisma.DbNull,
       };
 
-      if (question.id) {
+      if (question.id && existingById.has(question.id)) {
         await tx.question.update({
           where: { id: question.id },
           data,
@@ -118,6 +115,7 @@ export async function updateFormBySlug(
         await tx.question.create({
           data: {
             ...data,
+            ...(question.id ? { id: question.id } : {}),
             formId: form.id,
           },
         });

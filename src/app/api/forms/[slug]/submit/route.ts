@@ -3,7 +3,14 @@ import { QuestionType } from "@/generated/prisma/enums";
 import { validateAttachmentFile } from "@/lib/attachments-shared";
 import { saveAttachmentFile } from "@/lib/attachments";
 import { prisma } from "@/lib/prisma";
-import type { AnswerInput, MultipleChoiceOptions, QuestionOptions } from "@/lib/types";
+import { fireWebhooks } from "@/lib/webhooks";
+import { getVisibleQuestionIds } from "@/lib/branching";
+import type {
+  AnswerInput,
+  MultipleChoiceOptions,
+  QuestionOptions,
+  QuestionVisibility,
+} from "@/lib/types";
 import {
   isAttachmentOptions,
   isChoiceListOptions,
@@ -267,9 +274,37 @@ export async function POST(
     body.answers.map((answer) => [answer.questionId, answer]),
   );
 
+  // Resolve which questions are actually reachable given the submitted answers
+  // so hidden branches are neither required nor stored.
+  const rawValueFor = (question: (typeof form.questions)[number]): unknown =>
+    question.type === QuestionType.ATTACHMENT
+      ? filesByQuestion.get(question.id)
+      : answersByQuestion.get(question.id)?.value;
+
+  const answersForVisibility: Record<string, unknown> = {};
+  for (const question of form.questions) {
+    answersForVisibility[question.id] = rawValueFor(question);
+  }
+
+  const visibleQuestionIds = getVisibleQuestionIds(
+    form.questions.map((question) => ({
+      id: question.id,
+      order: question.order,
+      type: question.type,
+      prompt: question.prompt,
+      required: question.required,
+      options: question.options as QuestionOptions | null,
+      visibility: question.visibility as QuestionVisibility | null,
+    })),
+    answersForVisibility,
+  );
+
   const errors: Record<string, string> = {};
 
   for (const question of form.questions) {
+    if (!visibleQuestionIds.has(question.id)) {
+      continue;
+    }
     const answer = answersByQuestion.get(question.id);
     const value =
       question.type === QuestionType.ATTACHMENT
@@ -304,6 +339,9 @@ export async function POST(
 
       const answerRows = await Promise.all(
         form.questions.map(async (question) => {
+          if (!visibleQuestionIds.has(question.id)) {
+            return null;
+          }
           const answer = answersByQuestion.get(question.id);
           const rawValue =
             question.type === QuestionType.ATTACHMENT
@@ -409,6 +447,8 @@ export async function POST(
 
       return created;
     });
+
+    await fireWebhooks(form.id, slug, submission.id, submission.submittedAt);
 
     return NextResponse.json({
       submissionId: submission.id,
