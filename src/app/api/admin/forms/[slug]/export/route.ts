@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { can } from "@/lib/authz";
 import {
   buildSurveyExportCsv,
+  buildSurveyExportWorkbook,
   buildSurveyInsightsForExport,
 } from "@/lib/survey-export";
 import { prisma } from "@/lib/prisma";
@@ -17,16 +18,20 @@ type RouteContext = {
   params: Promise<{ slug: string }>;
 };
 
-export async function GET(_request: Request, context: RouteContext) {
+export async function GET(request: Request, context: RouteContext) {
   try {
     const actor = await requireActor();
     const { slug } = await context.params;
     const authzForm = await loadFormAuthzContext(actor, slug);
     const groupIds = await groupIdsForUser(actor);
 
-    if (!can(actor, "form:export", authzForm, groupIds)) {
+    // Anyone who can view responses can download (no separate export grant).
+    if (!can(actor, "form:view_responses", authzForm, groupIds)) {
       return NextResponse.json({ error: "Forbidden." }, { status: 403 });
     }
+
+    const formatParam = new URL(request.url).searchParams.get("format");
+    const format = formatParam === "csv" ? "csv" : "xlsx";
 
     const form = await prisma.form.findFirst({
       where: { slug, organizationId: actor.organizationId },
@@ -68,13 +73,22 @@ export async function GET(_request: Request, context: RouteContext) {
       })),
     );
 
-    const csv = `\uFEFF${buildSurveyExportCsv(form.id, insights)}`;
-    const filename = `${slug}-survey-export.csv`;
+    if (format === "csv") {
+      const csv = `\uFEFF${buildSurveyExportCsv(insights)}`;
+      return new Response(csv, {
+        headers: {
+          "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": `attachment; filename="${slug}-survey-export.csv"`,
+        },
+      });
+    }
 
-    return new Response(csv, {
+    const workbook = buildSurveyExportWorkbook(insights);
+    return new Response(new Uint8Array(workbook), {
       headers: {
-        "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="${filename}"`,
+        "Content-Type":
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Disposition": `attachment; filename="${slug}-survey-export.xlsx"`,
       },
     });
   } catch (error) {

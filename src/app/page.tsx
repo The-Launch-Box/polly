@@ -1,10 +1,26 @@
+import Image from "next/image";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 export default function HomePage() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-50 px-4">
+    <main className="relative flex min-h-screen items-center justify-center bg-zinc-50 px-4">
+      <Link
+        href="https://thelaunchbox.com"
+        className="absolute left-4 top-4 sm:left-6 sm:top-6"
+        aria-label="The Launch Box"
+      >
+        <Image
+          src="/company-themes/launch-box.png"
+          alt="The Launch Box"
+          width={120}
+          height={28}
+          className="h-7 w-auto"
+          priority
+        />
+      </Link>
+
       <div className="w-full max-w-lg rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm">
         <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
           Internal forms

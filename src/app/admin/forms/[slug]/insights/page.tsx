@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
+import { SurveyExportMenu } from "@/components/admin/SurveyExportMenu";
 import { SurveyInsightsDashboard } from "@/components/admin/SurveyInsightsDashboard";
 import { can } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
@@ -22,7 +23,6 @@ export default async function SurveyInsightsPage({ params }: PageProps) {
   const { slug } = await params;
 
   let form;
-  let canExport = false;
   try {
     const actor = await requireActor();
     const authzForm = await loadFormAuthzContext(actor, slug);
@@ -30,7 +30,6 @@ export default async function SurveyInsightsPage({ params }: PageProps) {
     if (!can(actor, "form:view_responses", authzForm, groupIds)) {
       notFound();
     }
-    canExport = can(actor, "form:export", authzForm, groupIds);
 
     form = await prisma.form.findFirst({
       where: { slug, organizationId: actor.organizationId },
@@ -103,14 +102,7 @@ export default async function SurveyInsightsPage({ params }: PageProps) {
             <p className="text-sm text-zinc-500">/q/{form.slug}</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            {canExport && (
-              <a
-                href={`/api/admin/forms/${form.slug}/export`}
-                className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-zinc-700"
-              >
-                Export CSV
-              </a>
-            )}
+            <SurveyExportMenu formSlug={form.slug} />
             <Link
               href={`/q/${form.slug}`}
               className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-800 transition hover:border-zinc-500"
