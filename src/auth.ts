@@ -1,6 +1,6 @@
 import NextAuth from "next-auth";
-import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import type { OrgRole, PlatformRole } from "@/generated/prisma/client";
+import { authConfig } from "@/auth.config";
 import {
   findOrganizationByEmail,
   getPlatformHomeOrganization,
@@ -8,14 +8,6 @@ import {
 import { isBootstrapSuperadminEmail } from "@/lib/platform-superadmins";
 import { prisma } from "@/lib/prisma";
 import { syncOrganizationsAndSchemas } from "@/lib/tenant-schema";
-
-/** Full issuer URL, or bare tenant UUID from Entra app overview. */
-function entraIssuerFromEnv(): string | undefined {
-  const raw = process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER?.trim();
-  if (!raw) return undefined;
-  if (raw.startsWith("https://")) return raw;
-  return `https://login.microsoftonline.com/${raw}/v2.0`;
-}
 
 function entraOidFromProfile(profile: unknown): string | null {
   if (!profile || typeof profile !== "object") return null;
@@ -39,16 +31,10 @@ async function ensureOrganizationsReady() {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  providers: [
-    MicrosoftEntraID({
-      clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID,
-      clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET,
-      issuer: entraIssuerFromEnv(),
-    }),
-  ],
-  trustHost: true,
-  session: { strategy: "jwt" },
+  ...authConfig,
   callbacks: {
+    ...authConfig.callbacks,
+
     async signIn({ user, profile }) {
       const email = user.email?.trim().toLowerCase();
       if (!email) {
@@ -243,14 +229,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           });
           if (switched) {
             activeOrg = switched;
-            const switchedMembership = await prisma.organizationMembership.findUnique({
-              where: {
-                userId_organizationId: {
-                  userId: dbUser.id,
-                  organizationId: switched.id,
+            const switchedMembership =
+              await prisma.organizationMembership.findUnique({
+                where: {
+                  userId_organizationId: {
+                    userId: dbUser.id,
+                    organizationId: switched.id,
+                  },
                 },
-              },
-            });
+              });
             // When viewing another customer org, act with Admin-level console
             // powers in the UI; can() still bypasses via SUPERADMIN.
             activeRole = switchedMembership?.role ?? "ADMIN";
@@ -291,26 +278,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             : null;
       }
       return session;
-    },
-
-    authorized({ auth, request }) {
-      const { pathname } = request.nextUrl;
-      const isProtected =
-        pathname.startsWith("/admin") || pathname.startsWith("/api/admin");
-
-      if (!isProtected) {
-        return true;
-      }
-
-      if (!auth?.user?.id || !auth.user.organizationId) {
-        if (pathname.startsWith("/api/admin")) {
-          return Response.json({ error: "Unauthorized." }, { status: 401 });
-        }
-
-        return false;
-      }
-
-      return true;
     },
   },
 });
