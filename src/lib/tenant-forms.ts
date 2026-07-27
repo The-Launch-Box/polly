@@ -25,20 +25,33 @@ export async function listAccessibleForms(actor: SessionActor) {
     },
   });
 
-  if (can(actor, "org:admin")) {
-    return forms;
-  }
+  const visible = can(actor, "org:admin")
+    ? forms
+    : forms.filter((form) =>
+        can(
+          actor,
+          "form:view",
+          {
+            id: form.id,
+            ownerUserId: form.ownerUserId,
+            access: form.access,
+          },
+          groupIdList,
+        ),
+      );
 
-  return forms.filter((form) =>
-    can(
-      actor,
-      "form:view",
-      {
-        id: form.id,
-        ownerUserId: form.ownerUserId,
-        access: form.access,
-      },
-      groupIdList,
-    ),
-  );
+  const ownerIds = [...new Set(visible.map((form) => form.ownerUserId))];
+  const owners =
+    ownerIds.length === 0
+      ? []
+      : await prisma.user.findMany({
+          where: { id: { in: ownerIds } },
+          select: { id: true, email: true },
+        });
+  const ownerEmailById = new Map(owners.map((user) => [user.id, user.email]));
+
+  return visible.map((form) => ({
+    ...form,
+    ownerEmail: ownerEmailById.get(form.ownerUserId) ?? null,
+  }));
 }

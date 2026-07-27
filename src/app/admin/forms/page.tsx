@@ -8,8 +8,14 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminFormsPage() {
   let forms;
+  let showOwnerEmail = false;
   try {
     const actor = await requireActor();
+    showOwnerEmail =
+      actor.platformRole === "SUPERADMIN" ||
+      actor.orgRole === "MANAGER" ||
+      actor.orgRole === "ADMIN" ||
+      actor.orgRole === "OWNER";
     forms = await listAccessibleForms(actor);
   } catch (error) {
     if (error instanceof AuthzError && error.status === 401) {
@@ -70,6 +76,14 @@ export default async function AdminFormsPage() {
                     {form._count.submissions} submission
                     {form._count.submissions === 1 ? "" : "s"}
                   </p>
+                  {showOwnerEmail && (
+                    <p className="mt-1 text-sm text-zinc-500">
+                      Owner:{" "}
+                      <span className="font-medium text-zinc-700">
+                        {form.ownerEmail ?? "Unknown user"}
+                      </span>
+                    </p>
+                  )}
                   {form.description && (
                     <p className="mt-2 text-sm text-zinc-600">
                       {form.description}
