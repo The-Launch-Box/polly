@@ -1,14 +1,14 @@
-import { PrismaPg } from "@prisma/adapter-pg";
 import type { PoolConfig } from "pg";
+import { PrismaPg } from "@prisma/adapter-pg";
 
 /**
- * Build a PrismaPg adapter that works for local Docker and Railway Postgres.
+ * Build a PrismaPg adapter that works for local Docker and hosted Postgres.
  *
- * Prisma 7 + @prisma/adapter-pg can hang or fail when only `connectionString`
- * is passed to SSL-backed hosts. Explicit pool fields + ssl avoids that:
- * https://github.com/prisma/prisma/issues/29252
+ * Optional `searchPath` sets Postgres search_path (used when mirroring rows
+ * into per-org tenant schemas via raw SQL). Prisma model queries always use
+ * the `public` schema from DATABASE_URL.
  */
-export function createPrismaPgAdapter() {
+export function createPrismaPgAdapter(options?: { searchPath?: string }) {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
     throw new Error("DATABASE_URL is not set");
@@ -33,8 +33,13 @@ export function createPrismaPgAdapter() {
     connectionTimeoutMillis: 10_000,
   };
 
+  if (options?.searchPath) {
+    // Keep public visible for enums / extensions; Prisma model queries use
+    // the schema set above.
+    config.options = `-c search_path=${options.searchPath},public`;
+  }
+
   if (!disableSsl) {
-    // Railway (and many hosted PG) use TLS with a cert Node does not trust.
     config.ssl = { rejectUnauthorized: false };
   }
 

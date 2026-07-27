@@ -1,7 +1,14 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { FormBuilder } from "@/components/admin/FormBuilder";
+import { can } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
+import {
+  AuthzError,
+  groupIdsForUser,
+  loadFormAuthzContext,
+  requireActor,
+} from "@/lib/session";
 import type { QuestionOptions, QuestionVisibility } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -13,18 +20,32 @@ type EditFormPageProps = {
 export default async function EditFormPage({ params }: EditFormPageProps) {
   const { slug } = await params;
 
-  const form = await prisma.form.findUnique({
-    where: { slug },
-    include: {
-      questions: {
-        orderBy: { order: "asc" },
+  let form;
+  try {
+    const actor = await requireActor();
+    const authzForm = await loadFormAuthzContext(actor, slug);
+    const groupIds = await groupIdsForUser(actor);
+    if (!can(actor, "form:edit", authzForm, groupIds)) {
+      notFound();
+    }
+
+    form = await prisma.form.findFirst({
+      where: { slug, organizationId: actor.organizationId },
+      include: {
+        questions: { orderBy: { order: "asc" } },
+        webhooks: true,
+        _count: { select: { submissions: true } },
       },
-      webhooks: true,
-      _count: {
-        select: { submissions: true },
-      },
-    },
-  });
+    });
+  } catch (error) {
+    if (error instanceof AuthzError) {
+      if (error.status === 401) {
+        redirect(`/api/auth/signin?callbackUrl=/admin/forms/${slug}/edit`);
+      }
+      notFound();
+    }
+    throw error;
+  }
 
   if (!form) {
     notFound();
@@ -41,12 +62,20 @@ export default async function EditFormPage({ params }: EditFormPageProps) {
               <span className="font-medium text-zinc-700">{form.title}</span>.
             </p>
           </div>
-          <Link
-            href="/admin/forms"
-            className="text-sm text-zinc-500 transition hover:text-zinc-800"
-          >
-            All surveys
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href={`/admin/forms/${form.slug}/sharing`}
+              className="text-sm text-zinc-500 transition hover:text-zinc-800"
+            >
+              Sharing
+            </Link>
+            <Link
+              href="/admin/forms"
+              className="text-sm text-zinc-500 transition hover:text-zinc-800"
+            >
+              All surveys
+            </Link>
+          </div>
         </div>
       </header>
 

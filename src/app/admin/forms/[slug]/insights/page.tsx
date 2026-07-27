@@ -1,8 +1,15 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { SurveyInsightsDashboard } from "@/components/admin/SurveyInsightsDashboard";
-import { buildSurveyInsights, formatDuration } from "@/lib/survey-insights";
+import { can } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
+import { buildSurveyInsights, formatDuration } from "@/lib/survey-insights";
+import {
+  AuthzError,
+  groupIdsForUser,
+  loadFormAuthzContext,
+  requireActor,
+} from "@/lib/session";
 import type { QuestionOptions } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -14,18 +21,36 @@ type PageProps = {
 export default async function SurveyInsightsPage({ params }: PageProps) {
   const { slug } = await params;
 
-  const form = await prisma.form.findUnique({
-    where: { slug },
-    include: {
-      questions: { orderBy: { order: "asc" } },
-      submissions: {
-        orderBy: { submittedAt: "desc" },
-        include: {
-          answers: true,
+  let form;
+  let canExport = false;
+  try {
+    const actor = await requireActor();
+    const authzForm = await loadFormAuthzContext(actor, slug);
+    const groupIds = await groupIdsForUser(actor);
+    if (!can(actor, "form:view_responses", authzForm, groupIds)) {
+      notFound();
+    }
+    canExport = can(actor, "form:export", authzForm, groupIds);
+
+    form = await prisma.form.findFirst({
+      where: { slug, organizationId: actor.organizationId },
+      include: {
+        questions: { orderBy: { order: "asc" } },
+        submissions: {
+          orderBy: { submittedAt: "desc" },
+          include: { answers: true },
         },
       },
-    },
-  });
+    });
+  } catch (error) {
+    if (error instanceof AuthzError) {
+      if (error.status === 401) {
+        redirect(`/api/auth/signin?callbackUrl=/admin/forms/${slug}/insights`);
+      }
+      notFound();
+    }
+    throw error;
+  }
 
   if (!form) {
     notFound();
@@ -78,12 +103,14 @@ export default async function SurveyInsightsPage({ params }: PageProps) {
             <p className="text-sm text-zinc-500">/q/{form.slug}</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <a
-              href={`/api/admin/forms/${form.slug}/export`}
-              className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-zinc-700"
-            >
-              Export CSV
-            </a>
+            {canExport && (
+              <a
+                href={`/api/admin/forms/${form.slug}/export`}
+                className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-zinc-700"
+              >
+                Export CSV
+              </a>
+            )}
             <Link
               href={`/q/${form.slug}`}
               className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-800 transition hover:border-zinc-500"

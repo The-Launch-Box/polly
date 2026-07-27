@@ -10,7 +10,8 @@
     "lint": "eslint",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "db:sync-tenants": "tsx --tsconfig tsconfig.json scripts/sync-tenants.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",

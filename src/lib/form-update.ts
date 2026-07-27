@@ -15,12 +15,13 @@ export class FormUpdateError extends Error {
 export async function updateFormBySlug(
   currentSlug: string,
   input: UpdateFormInput,
+  organizationId: string,
 ) {
   const normalized = normalizeFormInput(input);
 
   return prisma.$transaction(async (tx) => {
-    const form = await tx.form.findUnique({
-      where: { slug: currentSlug },
+    const form = await tx.form.findFirst({
+      where: { slug: currentSlug, organizationId },
       include: {
         questions: {
           orderBy: { order: "asc" },
