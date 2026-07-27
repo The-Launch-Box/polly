@@ -117,6 +117,7 @@ export function FormBuilder({
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(new Set());
 
@@ -225,6 +226,45 @@ export function FormBuilder({
       }
       return remapped;
     });
+  }
+
+  async function handleDelete() {
+    if (!isEdit || !originalSlug) return;
+
+    const label = title.trim() || originalSlug;
+    const confirmed = window.confirm(
+      `Delete survey “${label}”? This permanently removes the survey and all responses.`,
+    );
+    if (!confirmed) return;
+
+    setError(null);
+    setIsDeleting(true);
+
+    try {
+      const response = await fetch(`/api/admin/forms/${originalSlug}`, {
+        method: "DELETE",
+        credentials: "same-origin",
+      });
+
+      if (!response.ok) {
+        let message = "Could not delete survey.";
+        try {
+          const data = (await response.json()) as { error?: string };
+          if (data.error) message = data.error;
+        } catch {
+          // keep default message
+        }
+        setError(message);
+        return;
+      }
+
+      router.push("/admin/forms");
+      router.refresh();
+    } catch {
+      setError("Could not delete survey.");
+    } finally {
+      setIsDeleting(false);
+    }
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -510,7 +550,7 @@ export function FormBuilder({
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isSubmitting || isDeleting}
           className="rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSubmitting
@@ -527,6 +567,19 @@ export function FormBuilder({
             : "You'll be taken to the live survey when it's ready."}
         </p>
       </div>
+
+      {isEdit && (
+        <div className="border-t border-zinc-200 pt-6">
+          <button
+            type="button"
+            disabled={isSubmitting || isDeleting}
+            onClick={handleDelete}
+            className="text-sm text-red-600 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isDeleting ? "Deleting…" : "Delete survey"}
+          </button>
+        </div>
+      )}
       {showScrollTop && (
         <button
           type="button"

@@ -105,3 +105,13 @@ export async function mirrorFormRowToTenant(
     );
   });
 }
+
+/** Remove a form from the tenant schema (cascades related tenant rows). */
+export async function deleteFormRowFromTenant(
+  schemaName: string,
+  formId: string,
+): Promise<void> {
+  await withTenantConnection(schemaName, async (client) => {
+    await client.query(`DELETE FROM "Form" WHERE id = $1`, [formId]);
+  });
+}
