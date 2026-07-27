@@ -60,6 +60,14 @@ export default async function AdminLayout({
                 Members
               </Link>
             )}
+            {actor.platformRole === "SUPERADMIN" && (
+              <Link
+                href="/admin/platform"
+                className="text-zinc-500 transition hover:text-zinc-800"
+              >
+                Platform
+              </Link>
+            )}
           </div>
           <div className="flex items-center gap-4">
             {actor.platformRole === "SUPERADMIN" && (

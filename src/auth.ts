@@ -5,6 +5,7 @@ import {
   findOrganizationByEmail,
   getPlatformHomeOrganization,
 } from "@/lib/organizations";
+import { isBootstrapSuperadminEmail } from "@/lib/platform-superadmins";
 import { prisma } from "@/lib/prisma";
 import { syncOrganizationsAndSchemas } from "@/lib/tenant-schema";
 
@@ -14,22 +15,6 @@ function entraIssuerFromEnv(): string | undefined {
   if (!raw) return undefined;
   if (raw.startsWith("https://")) return raw;
   return `https://login.microsoftonline.com/${raw}/v2.0`;
-}
-
-function platformEmails(): Set<string> {
-  const raw = process.env.PLATFORM_SUPERADMIN_EMAILS ?? "";
-  return new Set(
-    raw
-      .split(",")
-      .map((value) => value.trim().toLowerCase())
-      .filter(Boolean),
-  );
-}
-
-function isPlatformOperatorEmail(email: string): boolean {
-  if (platformEmails().has(email)) return true;
-  // TLB staff domain is treated as platform-capable by default.
-  return email.endsWith("@thelaunchbox.com");
 }
 
 function entraOidFromProfile(profile: unknown): string | null {
@@ -70,10 +55,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return false;
       }
 
-      const isPlatform = isPlatformOperatorEmail(email);
-      const orgDef =
-        findOrganizationByEmail(email) ??
-        (isPlatform ? getPlatformHomeOrganization() : undefined);
+      // Bootstrap SUPERADMINs come only from PLATFORM_SUPERADMIN_EMAILS.
+      // UI-granted SUPERADMIN on User.platformRole is preserved across logins.
+      const isBootstrapSuperadmin = isBootstrapSuperadminEmail(email);
+      const orgDef = findOrganizationByEmail(email);
       if (!orgDef) {
         console.warn(`Sign-in rejected: unregistered email domain (${email})`);
         return false;
@@ -96,23 +81,33 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return false;
         }
 
-        const platformRole: PlatformRole | null = isPlatform ? "SUPERADMIN" : null;
-
-        const dbUser = await prisma.user.upsert({
+        const existingUser = await prisma.user.findUnique({
           where: { entraOid: oid },
-          update: {
-            email,
-            name: user.name ?? undefined,
-            platformRole,
-          },
-          create: {
-            email,
-            name: user.name ?? null,
-            entraOid: oid,
-            platformRole,
-            activeOrganizationId: isPlatform ? organization.id : null,
-          },
         });
+
+        const dbUser = existingUser
+          ? await prisma.user.update({
+              where: { id: existingUser.id },
+              data: {
+                email,
+                name: user.name ?? undefined,
+                // Only bootstrap emails force SUPERADMIN; never clear UI grants.
+                ...(isBootstrapSuperadmin
+                  ? { platformRole: "SUPERADMIN" as PlatformRole }
+                  : {}),
+              },
+            })
+          : await prisma.user.create({
+              data: {
+                email,
+                name: user.name ?? null,
+                entraOid: oid,
+                platformRole: isBootstrapSuperadmin ? "SUPERADMIN" : null,
+                activeOrganizationId: isBootstrapSuperadmin
+                  ? organization.id
+                  : null,
+              },
+            });
 
         if (dbUser.email !== email) {
           await prisma.user.update({
@@ -121,11 +116,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           });
         }
 
-        // Ensure TLB platform operators always have a home membership on The Launch Box.
+        // Bootstrap operators always have Owner membership on The Launch Box.
         const homeOrg = await prisma.organization.findUnique({
           where: { slug: getPlatformHomeOrganization().slug },
         });
-        if (isPlatform && homeOrg) {
+        if (isBootstrapSuperadmin && homeOrg) {
           await prisma.organizationMembership.upsert({
             where: {
               userId_organizationId: {
@@ -163,7 +158,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           });
 
           const role: OrgRole =
-            isPlatform && organization.slug === getPlatformHomeOrganization().slug
+            isBootstrapSuperadmin &&
+            organization.slug === getPlatformHomeOrganization().slug
               ? "OWNER"
               : memberCount === 0
                 ? "OWNER"
