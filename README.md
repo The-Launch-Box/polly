@@ -42,14 +42,15 @@ Docker Compose spins up a local PostgreSQL instance. No Azure account needed.
 - Docker & Docker Compose v2
 - `npm` (or `pnpm` / `yarn`)
 
-### Quick start
+### Quick start 
+**IMPORTANT:** It is essential to run all of these commands before deploying this app. 
 
 ```bash
 # 1. Copy env file
-cp .env.example .env
+cp .env.example .env // Ask Kaylee (kaylee.scanlin@thelaunchbox.com) for access to the .env vault.
 
 # 2. Start Postgres
-docker compose up -d
+docker compose up -d // Creates docker container for postgres 
 
 # 3. Install dependencies
 npm install
