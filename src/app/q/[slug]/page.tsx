@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { SurveyHeader } from "@/components/SurveyHeader";
 import { SurveyThemeProvider } from "@/components/SurveyThemeProvider";
 import { FormPlayer } from "@/components/FormPlayer";

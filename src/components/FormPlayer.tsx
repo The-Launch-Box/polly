@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { NpsFlow } from "@/components/NpsFlow";
 import { validateContactInfoAnswer } from "@/lib/contact-info";
+import { getVisibleQuestionIds } from "@/lib/branching";
 import type { FormPayload, NpsAnswer } from "@/lib/types";
 import { isHeatmapPoint, isNpsOptions } from "@/lib/types";
 import { ProgressBar } from "@/components/ProgressBar";
@@ -28,6 +29,9 @@ export function FormPlayer({ form }: FormPlayerProps) {
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [questionErrors, setQuestionErrors] = useState<Record<string, boolean>>(
+    {},
+  );
   const [npsScore, setNpsScore] = useState<number | null>(null);
   const [npsFollowUpText, setNpsFollowUpText] = useState("");
   const transitionTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -37,10 +41,62 @@ export function FormPlayer({ form }: FormPlayerProps) {
 
   const questions = form.questions;
   const currentQuestion = questions[displayIndex];
-  const isLast = currentIndex === questions.length - 1;
   const isNpsQuestion = currentQuestion?.type === "NPS";
-  const progress = ((currentIndex + 1) / questions.length) * 100;
   const isTransitioning = slidePhase !== "idle";
+
+  // Questions reachable given the answers so far, as indices into `questions`.
+  // Branching means this set changes as the respondent answers, so navigation,
+  // progress, and validation all work off the visible subset rather than the
+  // raw question list.
+  const visibleIndexList = useMemo(() => {
+    const visibleIds = getVisibleQuestionIds(questions, answers);
+    return questions.reduce<number[]>((acc, question, index) => {
+      if (visibleIds.has(question.id)) {
+        acc.push(index);
+      }
+      return acc;
+    }, []);
+  }, [questions, answers]);
+
+  const visibleCount = visibleIndexList.length;
+  const currentVisiblePos = visibleIndexList.indexOf(currentIndex);
+  const isLast =
+    currentVisiblePos !== -1 && currentVisiblePos === visibleCount - 1;
+  const progress =
+    visibleCount > 0 ? ((currentVisiblePos + 1) / visibleCount) * 100 : 0;
+  const visibleErrorFlags = visibleIndexList.map(
+    (index) => questionErrors[questions[index].id] ?? false,
+  );
+
+  function visibleListFor(nextAnswers: Record<string, unknown>): number[] {
+    const visibleIds = getVisibleQuestionIds(questions, nextAnswers);
+    return questions.reduce<number[]>((acc, question, index) => {
+      if (visibleIds.has(question.id)) {
+        acc.push(index);
+      }
+      return acc;
+    }, []);
+  }
+
+  function nextVisibleIndex(
+    fromIndex: number,
+    list: number[] = visibleIndexList,
+  ): number | null {
+    const pos = list.indexOf(fromIndex);
+    if (pos === -1) {
+      return list.find((index) => index > fromIndex) ?? null;
+    }
+    return pos + 1 < list.length ? list[pos + 1] : null;
+  }
+
+  function prevVisibleIndex(fromIndex: number): number | null {
+    const pos = visibleIndexList.indexOf(fromIndex);
+    if (pos === -1) {
+      const earlier = visibleIndexList.filter((index) => index < fromIndex);
+      return earlier.length > 0 ? earlier[earlier.length - 1] : null;
+    }
+    return pos - 1 >= 0 ? visibleIndexList[pos - 1] : null;
+  }
 
   const currentValue = useMemo(() => {
     if (!currentQuestion) {
@@ -112,17 +168,17 @@ export function FormPlayer({ form }: FormPlayerProps) {
     }
     setAnswers((prev) => ({ ...prev, [currentQuestion.id]: value }));
     setError(null);
+    setQuestionErrors((prev) => {
+      if (!prev[currentQuestion.id]) return prev;
+      const next = { ...prev };
+      delete next[currentQuestion.id];
+      return next;
+    });
   }
 
-  function validateCurrent(): string | null {
-    const question = questions[currentIndex];
-    if (!question) {
-      return null;
-    }
-
-    if (question.type === "NPS") {
-      return null;
-    }
+  function validateQuestion(questionIndex: number): string | null {
+    const question = questions[questionIndex];
+    if (!question || question.type === "NPS") return null;
 
     const value = answers[question.id];
 
@@ -130,9 +186,8 @@ export function FormPlayer({ form }: FormPlayerProps) {
       return validateContactInfoAnswer(value, question.required, form.anonymous);
     }
 
-    if (!question.required) {
-      return null;
-    }
+    if (!question.required) return null;
+
     if (
       value === undefined ||
       value === null ||
@@ -148,22 +203,18 @@ export function FormPlayer({ form }: FormPlayerProps) {
       return "Please upload a file before continuing.";
     }
     if (question.type === "HEATMAP" && !isHeatmapPoint(value)) {
-      if (
-        !Array.isArray(value) ||
-        value.length === 0 ||
-        !value.every(isHeatmapPoint)
-      ) {
+      if (!Array.isArray(value) || value.length === 0 || !value.every(isHeatmapPoint)) {
         return "Please click on the image before continuing.";
       }
     }
-    if (
-      question.type === "MULTIPLE_CHOICE" &&
-      Array.isArray(value) &&
-      value.length === 0
-    ) {
+    if (question.type === "MULTIPLE_CHOICE" && Array.isArray(value) && value.length === 0) {
       return "Please select at least one option before continuing.";
     }
     return null;
+  }
+
+  function validateCurrent(): string | null {
+    return validateQuestion(currentIndex);
   }
 
   async function submitSurvey(
@@ -174,7 +225,15 @@ export function FormPlayer({ form }: FormPlayerProps) {
       finalizeQuestionDuration(lastQuestion.id);
     }
 
-    const answerPayload = Object.entries(nextAnswers).map(([questionId, value]) => ({
+    // Only submit answers for questions that remain visible under the final set
+    // of answers; abandoned branches are dropped client-side (and the server
+    // re-derives visibility as an authoritative check).
+    const visibleIds = getVisibleQuestionIds(questions, nextAnswers);
+    const visibleAnswers = Object.entries(nextAnswers).filter(([questionId]) =>
+      visibleIds.has(questionId),
+    );
+
+    const answerPayload = visibleAnswers.map(([questionId, value]) => ({
       questionId,
       value: value instanceof File ? null : value,
       ...(form.anonymous ? {} : { durationMs: durationsRef.current[questionId] }),
@@ -182,7 +241,7 @@ export function FormPlayer({ form }: FormPlayerProps) {
     const timingPayload = form.anonymous
       ? {}
       : { totalDurationMs: Date.now() - surveyStartedAt.current };
-    const hasFiles = Object.values(nextAnswers).some((value) => value instanceof File);
+    const hasFiles = visibleAnswers.some(([, value]) => value instanceof File);
 
     const response = await fetch(`/api/forms/${form.slug}/submit`, {
       method: "POST",
@@ -197,7 +256,7 @@ export function FormPlayer({ form }: FormPlayerProps) {
                   answers: answerPayload,
                 }),
               );
-              for (const [questionId, value] of Object.entries(nextAnswers)) {
+              for (const [questionId, value] of visibleAnswers) {
                 if (value instanceof File) {
                   formData.append(`attachment:${questionId}`, value);
                 }
@@ -242,8 +301,9 @@ export function FormPlayer({ form }: FormPlayerProps) {
     const nextAnswers = { ...answers, [currentQuestion.id]: answer };
     setAnswers(nextAnswers);
 
-    if (!isLast) {
-      startSlide(currentIndex + 1);
+    const next = nextVisibleIndex(currentIndex, visibleListFor(nextAnswers));
+    if (next !== null) {
+      startSlide(next);
       return {};
     }
 
@@ -284,8 +344,9 @@ export function FormPlayer({ form }: FormPlayerProps) {
     const nextAnswers = { ...answers, [currentQuestion.id]: answer };
     setAnswers(nextAnswers);
 
-    if (!isLast) {
-      startSlide(currentIndex + 1);
+    const next = nextVisibleIndex(currentIndex, visibleListFor(nextAnswers));
+    if (next !== null) {
+      startSlide(next);
       return true;
     }
 
@@ -309,14 +370,40 @@ export function FormPlayer({ form }: FormPlayerProps) {
   }
 
   async function handleNext() {
-    const validationError = validateCurrent();
-    if (validationError) {
-      setError(validationError);
+    if (!isLast) {
+      const validationError = validateCurrent();
+      if (validationError) {
+        setError(validationError);
+        setQuestionErrors((prev) => ({
+          ...prev,
+          [currentQuestion.id]: true,
+        }));
+        return;
+      }
+      const next = nextVisibleIndex(currentIndex);
+      if (next !== null) {
+        startSlide(next);
+      }
       return;
     }
 
-    if (!isLast) {
-      startSlide(currentIndex + 1);
+    // On the last question validate every visible question at once — catches
+    // required questions the user skipped by dragging the progress bar. The
+    // current question is included so its specific message is shown when it's
+    // the blocker.
+    const errorFlags: Record<string, boolean> = {};
+    for (const index of visibleIndexList) {
+      if (validateQuestion(index) !== null) {
+        errorFlags[questions[index].id] = true;
+      }
+    }
+    if (Object.keys(errorFlags).length > 0) {
+      setQuestionErrors(errorFlags);
+      setError(
+        errorFlags[currentQuestion.id]
+          ? (validateCurrent() ?? "Please answer this question before continuing.")
+          : "Please go back and answer all required questions before submitting.",
+      );
       return;
     }
 
@@ -339,10 +426,11 @@ export function FormPlayer({ form }: FormPlayerProps) {
   }
 
   function handleBack() {
-    if (currentIndex === 0) {
+    const prev = prevVisibleIndex(currentIndex);
+    if (prev === null) {
       return;
     }
-    startSlide(currentIndex - 1);
+    startSlide(prev);
   }
 
   if (!currentQuestion) {
@@ -367,9 +455,21 @@ export function FormPlayer({ form }: FormPlayerProps) {
           className="text-sm font-medium transition-opacity duration-300"
           style={{ color: "var(--theme-text-muted)" }}
         >
-          Question {currentIndex + 1} of {questions.length}
+          Question {currentVisiblePos + 1} of {visibleCount}
         </p>
-        <ProgressBar value={progress} />
+        <ProgressBar
+          value={progress}
+          total={visibleCount}
+          currentIndex={currentVisiblePos}
+          onSeek={(pos) => {
+            const target = visibleIndexList[pos];
+            if (target !== undefined) {
+              startSlide(target);
+            }
+          }}
+          disabled={isTransitioning || isSubmitting}
+          questionErrors={visibleErrorFlags}
+        />
       </div>
 
       <div className="flex flex-1 flex-col overflow-hidden">
@@ -379,7 +479,7 @@ export function FormPlayer({ form }: FormPlayerProps) {
               question={currentQuestion}
               anonymous={form.anonymous}
               onBack={handleBack}
-              canGoBack={currentIndex > 0}
+              canGoBack={currentVisiblePos > 0}
               onPromoterSubmit={handleNpsPromoterSubmit}
               onDetractorComplete={handleNpsDetractorComplete}
               isSubmitting={isSubmitting}
@@ -408,7 +508,9 @@ export function FormPlayer({ form }: FormPlayerProps) {
             <button
               type="button"
               onClick={handleBack}
-              disabled={currentIndex === 0 || isSubmitting || isTransitioning}
+              disabled={
+                currentVisiblePos <= 0 || isSubmitting || isTransitioning
+              }
               className="rounded-lg px-4 py-2 text-sm font-medium transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
               style={{ color: "var(--theme-text-muted)" }}
             >

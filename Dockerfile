@@ -15,10 +15,10 @@ COPY . .
 # Generate Prisma client before build
 RUN npx prisma generate
 
-# next.config.ts sets output: 'standalone'
 RUN npm run build
 
-# ── Stage 3: production node_modules (complete tree for Prisma CLI migrate/seed)
+# ── Stage 3: production node_modules (complete tree for Prisma CLI migrate/seed
+# and for `next start` — same runtime shape as the working Nixpacks deploy)
 FROM node:20-alpine AS prod-deps
 WORKDIR /app
 
@@ -32,25 +32,21 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
-# Standalone server listens on 3000 by default; Container Apps expects 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
-# Writable by the non-root nextjs user (Docker/Railway)
 ENV ATTACHMENTS_DIR=/tmp/polly-uploads
 
-# Non-root user for security
 RUN addgroup --system --gid 1001 nodejs && \
     adduser  --system --uid 1001 nextjs
 
-# Copy standalone app output (server.js + traced assets)
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static    ./.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/public          ./public
-
-# Overlay a full production node_modules so `prisma` / `tsx` and their
-# transitive deps (e.g. effect, c12) are available for pre-deploy migrate/seed.
-COPY --from=prod-deps --chown=nextjs:nodejs /app/node_modules ./node_modules
+# Full Next build + deps so we use `next start` (not standalone `node server.js`).
+# Standalone was baking AUTH_* as undefined at build time; next start reads Railway
+# runtime env the same way the working Nixpacks deploy does.
+COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/next.config.ts ./next.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
+COPY --from=prod-deps --chown=nextjs:nodejs /app/node_modules ./node_modules
 
 # Prisma schema, config, migrations, and files needed by migrate/seed
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
@@ -58,7 +54,6 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.
 COPY --from=builder --chown=nextjs:nodejs /app/src/generated ./src/generated
 COPY --from=builder --chown=nextjs:nodejs /app/src/lib/pg-adapter.ts ./src/lib/pg-adapter.ts
 
-# Ensure runtime dirs are writable by nextjs (avoids EACCES on uploads/cache)
 RUN mkdir -p /tmp/polly-uploads /app/.uploads /app/.next/cache \
   && chown -R nextjs:nodejs /app /tmp/polly-uploads
 
@@ -66,7 +61,5 @@ USER nextjs
 
 EXPOSE 3000
 
-# Default command: run the Next.js server
-# The migrate Container Apps Job / Railway preDeploy overrides with:
-#   npx prisma migrate deploy && npx prisma db seed
-CMD ["node", "server.js"]
+# Match the working deploy: next start (Railway overrides with startCommand)
+CMD ["npx", "next", "start", "--hostname", "0.0.0.0"]

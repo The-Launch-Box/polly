@@ -1,11 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { formatFileSize, getAcceptAttribute } from "@/lib/attachments-shared";
 import {
   emptyContactInfoAnswer,
   isContactInfoAnswer,
 } from "@/lib/contact-info";
-import type { ContactInfoAnswer, FormQuestion, HeatmapPoint } from "@/lib/types";
+import type { ContactInfoAnswer, ContactInfoOptions, FormQuestion, HeatmapPoint } from "@/lib/types";
 import {
   isAttachmentAnswer,
   isAttachmentOptions,
@@ -102,6 +103,7 @@ export function QuestionStep({ question, value, onChange }: QuestionStepProps) {
 
         {question.type === "CONTACT_INFO" && (
           <ContactInfoInput
+            options={question.options as ContactInfoOptions | null}
             value={isContactInfoAnswer(value) ? value : emptyContactInfoAnswer()}
             onChange={onChange}
           />
@@ -545,9 +547,11 @@ function AttachmentInput({
 }
 
 function ContactInfoInput({
+  options,
   value,
   onChange,
 }: {
+  options: ContactInfoOptions | null;
   value: ContactInfoAnswer;
   onChange: (value: ContactInfoAnswer) => void;
 }) {
@@ -556,6 +560,18 @@ function ContactInfoInput({
     backgroundColor: "var(--theme-surface)",
     color: "var(--theme-text)",
   };
+
+  const companyMode = options?.companyMode ?? "free";
+  const companies = options?.companies ?? [];
+  const isDropdown = companyMode === "dropdown" && companies.length > 0;
+
+  const [selectValue, setSelectValue] = useState<string>(() => {
+    if (!isDropdown || value.businessName === "") return "";
+    if (companies.includes(value.businessName)) return value.businessName;
+    return "__other__";
+  });
+
+  const isOtherSelected = selectValue === "__other__";
 
   function updateField(field: keyof ContactInfoAnswer, fieldValue: string) {
     onChange({ ...value, [field]: fieldValue });
@@ -613,22 +629,57 @@ function ContactInfoInput({
           style={inputStyle}
         />
       </label>
-      <label className="block">
+      <div className="block">
         <span
           className="mb-1 block text-sm font-medium"
           style={{ color: "var(--theme-text)" }}
         >
           Business name
         </span>
-        <input
-          type="text"
-          autoComplete="organization"
-          value={value.businessName}
-          onChange={(event) => updateField("businessName", event.target.value)}
-          className="w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:ring-2"
-          style={inputStyle}
-        />
-      </label>
+        {isDropdown ? (
+          <div className="space-y-2">
+            <select
+              value={selectValue}
+              onChange={(event) => {
+                const v = event.target.value;
+                setSelectValue(v);
+                if (v !== "__other__") updateField("businessName", v);
+                else updateField("businessName", "");
+              }}
+              className="w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:ring-2"
+              style={inputStyle}
+            >
+              <option value="" disabled>Select your company...</option>
+              {companies.map((company) => (
+                <option key={company} value={company}>
+                  {company}
+                </option>
+              ))}
+              <option value="__other__">Other</option>
+            </select>
+            {isOtherSelected && (
+              <input
+                type="text"
+                autoComplete="organization"
+                value={value.businessName}
+                onChange={(event) => updateField("businessName", event.target.value)}
+                placeholder="Enter your company name"
+                className="w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:ring-2"
+                style={inputStyle}
+              />
+            )}
+          </div>
+        ) : (
+          <input
+            type="text"
+            autoComplete="organization"
+            value={value.businessName}
+            onChange={(event) => updateField("businessName", event.target.value)}
+            className="w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:ring-2"
+            style={inputStyle}
+          />
+        )}
+      </div>
     </div>
   );
 }

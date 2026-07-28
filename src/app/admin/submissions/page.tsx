@@ -1,28 +1,57 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { can } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { formatDuration } from "@/lib/survey-insights";
+import { AuthzError, groupIdsForUser, requireActor } from "@/lib/session";
+import { listAccessibleForms } from "@/lib/tenant-forms";
 import { formatAnswerValue, isAttachmentAnswer } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminSubmissionsPage() {
-  const submissions = await prisma.submission.findMany({
-    orderBy: { submittedAt: "desc" },
-    take: 50,
-    include: {
-      form: true,
-      answers: {
-        include: {
-          question: true,
-        },
-        orderBy: {
-          question: {
-            order: "asc",
+  let submissions;
+  try {
+    const actor = await requireActor();
+    const accessible = await listAccessibleForms(actor);
+    const readableIds = new Set<string>();
+    const groupIds = await groupIdsForUser(actor);
+
+    for (const form of accessible) {
+      if (
+        can(
+          actor,
+          "form:view_responses",
+          {
+            id: form.id,
+            ownerUserId: form.ownerUserId,
+            access: form.access,
           },
+          groupIds,
+        )
+      ) {
+        readableIds.add(form.id);
+      }
+    }
+
+    submissions = await prisma.submission.findMany({
+      where: { formId: { in: [...readableIds] } },
+      orderBy: { submittedAt: "desc" },
+      take: 50,
+      include: {
+        form: true,
+        answers: {
+          include: { question: true },
+          orderBy: { question: { order: "asc" } },
         },
       },
-    },
-  });
+    });
+  } catch (error) {
+    if (error instanceof AuthzError && error.status === 401) {
+      redirect("/api/auth/signin?callbackUrl=/admin/submissions");
+    }
+    throw error;
+  }
 
   return (
     <>
@@ -46,11 +75,7 @@ export default async function AdminSubmissionsPage() {
       <div className="mx-auto max-w-5xl space-y-4 px-4 py-8">
         {submissions.length === 0 ? (
           <div className="rounded-xl border border-dashed border-zinc-300 bg-white p-8 text-center text-sm text-zinc-500">
-            No submissions yet. Complete a form at{" "}
-            <Link href="/q/claude-comfort" className="text-zinc-800 underline">
-              /q/claude-comfort
-            </Link>
-            .
+            No submissions yet for surveys you can access.
           </div>
         ) : (
           submissions.map((submission) => (

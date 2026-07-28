@@ -1,3 +1,4 @@
+import * as XLSX from "xlsx";
 import { QuestionType } from "@/generated/prisma/enums";
 import { rowsToCsv } from "@/lib/csv";
 import {
@@ -38,167 +39,124 @@ export function buildSurveyInsightsForExport(
   return buildSurveyInsights(form, submissions);
 }
 
-function buildResponsesSection(
-  surveyId: string,
-  insights: SurveyInsights,
-): string {
-  const questionHeaders = insights.questions.map(
+function questionHeaders(insights: SurveyInsights): string[] {
+  return insights.questions.map(
     (question) => `Q${question.order}: ${question.prompt}`,
   );
+}
 
-  const header = [
-    "Survey ID",
-    "Submission ID",
-    "Submitted At",
-    "Total Duration",
-    ...questionHeaders,
-  ];
+function durationMsToSeconds(ms: number | null | undefined): number | null {
+  if (ms == null || ms < 0) return null;
+  return Math.round((ms / 1000) * 1000) / 1000;
+}
 
-  const rows: Array<Array<string | number | null | undefined>> = [header];
+function buildResponsesSheet(
+  insights: SurveyInsights,
+): Array<Array<string | number | null>> {
+  const headers = questionHeaders(insights);
+  const rows: Array<Array<string | number | null>> = [headers];
 
   for (const submission of insights.submissions) {
-    rows.push([
-      surveyId,
-      submission.id,
-      submission.submittedAt instanceof Date
-        ? submission.submittedAt.toISOString()
-        : submission.submittedAt,
-      formatDuration(submission.totalDurationMs),
-      ...submission.answers.map((answer) => answer.valueLabel),
-    ]);
+    const byQuestionId = new Map(
+      submission.answers.map((answer) => [answer.questionId, answer.valueLabel]),
+    );
+    rows.push(
+      insights.questions.map(
+        (question) => byQuestionId.get(question.questionId) ?? "",
+      ),
+    );
   }
 
-  return rowsToCsv(rows);
+  return rows;
 }
 
-function buildAggregatesSection(insights: SurveyInsights): string {
-  const rows: Array<Array<string | number | null | undefined>> = [];
-
-  rows.push(["Summary"]);
-  rows.push(["Metric", "Value"]);
-  rows.push(["Survey", insights.formTitle]);
-  rows.push(["Slug", insights.formSlug]);
-  rows.push(["Responses", insights.responseCount]);
-  rows.push(["Avg completion time", formatDuration(insights.avgTotalDurationMs)]);
-  rows.push(["Questions", insights.questions.length]);
-  rows.push([]);
-
-  rows.push(["Responses by day"]);
-  rows.push(["Date", "Count"]);
-  for (const entry of insights.responseTimeline) {
-    rows.push([entry.date, entry.count]);
-  }
-  rows.push([]);
-
-  rows.push(["Time per question (seconds)"]);
-  rows.push(["Question", "Average", "Min", "Max"]);
-  for (const entry of insights.questionTimingChart) {
-    rows.push([
-      entry.question,
-      entry.avgSeconds,
-      entry.minSeconds,
-      entry.maxSeconds,
-    ]);
-  }
-  rows.push([]);
-
-  rows.push(["Per-question summary"]);
-  rows.push([
-    "Question",
-    "Prompt",
-    "Type",
-    "Summary",
-    "Responses timed",
-    "Avg time",
-    "Min time",
-    "Max time",
-  ]);
-  for (const question of insights.questions) {
-    rows.push([
-      `Q${question.order}`,
-      question.prompt,
-      question.type,
-      question.summary,
-      question.timing?.count ?? 0,
-      question.timing ? formatDuration(question.timing.avgMs) : "—",
-      question.timing ? formatDuration(question.timing.minMs) : "—",
-      question.timing ? formatDuration(question.timing.maxMs) : "—",
-    ]);
-  }
-  rows.push([]);
-
-  const choiceQuestions = insights.questions.filter(
-    (question) => question.choiceBuckets && question.choiceBuckets.length > 0,
-  );
-  if (choiceQuestions.length > 0) {
-    rows.push(["Choice distributions"]);
-    rows.push(["Question", "Option", "Count", "Percentage"]);
-    for (const question of choiceQuestions) {
-      const total = question.choiceBuckets!.reduce((sum, bucket) => sum + bucket.count, 0);
-      for (const bucket of question.choiceBuckets!) {
-        const percentage =
-          total > 0 ? `${((bucket.count / total) * 100).toFixed(1)}%` : "0%";
-        rows.push([
-          `Q${question.order}: ${question.prompt}`,
-          bucket.label,
-          bucket.count,
-          percentage,
-        ]);
-      }
-    }
-    rows.push([]);
-  }
-
-  const numericQuestions = insights.questions.filter(
-    (question) => question.numericDistribution && question.numericDistribution.length > 0,
-  );
-  if (numericQuestions.length > 0) {
-    rows.push(["Numeric distributions"]);
-    rows.push(["Question", "Value", "Count"]);
-    for (const question of numericQuestions) {
-      for (const bucket of question.numericDistribution!) {
-        rows.push([
-          `Q${question.order}: ${question.prompt}`,
-          bucket.label,
-          bucket.count,
-        ]);
-      }
-    }
-    rows.push([]);
-  }
-
-  const textQuestions = insights.questions.filter(
-    (question) => question.textResponses && question.textResponses.length > 0,
-  );
-  if (textQuestions.length > 0) {
-    rows.push(["Text responses"]);
-    rows.push(["Question", "Response", "Time on question"]);
-    for (const question of textQuestions) {
-      for (const response of question.textResponses!) {
-        rows.push([
-          `Q${question.order}: ${question.prompt}`,
-          response.value,
-          formatDuration(response.durationMs),
-        ]);
-      }
-    }
-  }
-
-  return rowsToCsv(rows);
-}
-
-export function buildSurveyExportCsv(
-  surveyId: string,
+function buildMetadataSheet(
   insights: SurveyInsights,
-): string {
-  const responses = buildResponsesSection(surveyId, insights);
-  const aggregates = buildAggregatesSection(insights);
-
+): Array<Array<string | number | null>> {
   return [
-    "Page 1 - Responses",
-    responses,
-    "",
-    "Page 2 - Aggregates",
-    aggregates,
-  ].join("\r\n");
+    ["Metric", "Value"],
+    ["Responses", insights.responseCount],
+    ["Avg. completion time", formatDuration(insights.avgTotalDurationMs)],
+    ["Number of questions", insights.questions.length],
+  ];
+}
+
+function buildTimeSheet(
+  insights: SurveyInsights,
+): Array<Array<string | number | null>> {
+  const headers = questionHeaders(insights);
+  const rows: Array<Array<string | number | null>> = [headers];
+
+  for (const submission of insights.submissions) {
+    const byQuestionId = new Map(
+      submission.answers.map((answer) => [answer.questionId, answer.durationMs]),
+    );
+    rows.push(
+      insights.questions.map((question) => {
+        const seconds = durationMsToSeconds(
+          byQuestionId.get(question.questionId),
+        );
+        return seconds ?? "";
+      }),
+    );
+  }
+
+  return rows;
+}
+
+/**
+ * Long-format CSV: one row per answer.
+ * Columns: question (number), time (seconds), response (answer value).
+ * No metadata / summary rows.
+ */
+export function buildSurveyExportCsv(insights: SurveyInsights): string {
+  const rows: Array<Array<string | number | null | undefined>> = [
+    ["question", "time", "response"],
+  ];
+
+  for (const submission of insights.submissions) {
+    const byQuestionId = new Map(
+      submission.answers.map((answer) => [
+        answer.questionId,
+        { valueLabel: answer.valueLabel, durationMs: answer.durationMs },
+      ]),
+    );
+
+    for (const question of insights.questions) {
+      const answer = byQuestionId.get(question.questionId);
+      rows.push([
+        question.order,
+        durationMsToSeconds(answer?.durationMs) ?? "",
+        answer?.valueLabel ?? "",
+      ]);
+    }
+  }
+
+  return rowsToCsv(rows);
+}
+
+/** Multi-sheet .xlsx workbook (responses / metadata / time). */
+export function buildSurveyExportWorkbook(insights: SurveyInsights): Buffer {
+  const workbook = XLSX.utils.book_new();
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    XLSX.utils.aoa_to_sheet(buildResponsesSheet(insights)),
+    "responses",
+  );
+  XLSX.utils.book_append_sheet(
+    workbook,
+    XLSX.utils.aoa_to_sheet(buildMetadataSheet(insights)),
+    "metadata",
+  );
+  XLSX.utils.book_append_sheet(
+    workbook,
+    XLSX.utils.aoa_to_sheet(buildTimeSheet(insights)),
+    "time",
+  );
+
+  return XLSX.write(workbook, {
+    type: "buffer",
+    bookType: "xlsx",
+  }) as Buffer;
 }

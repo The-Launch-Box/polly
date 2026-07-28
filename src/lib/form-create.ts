@@ -15,7 +15,12 @@ import type {
   AttachmentOptions,
   NpsOptions,
   NpsContactField,
+  ContactInfoOptions,
+  QuestionVisibility,
+  BranchCondition,
 } from "@/lib/types";
+import { isBranchOperator } from "@/lib/types";
+import { operatorRequiresValue, operatorsForType } from "@/lib/branching";
 import {
   DEFAULT_NPS_CLOSING_BODY,
   DEFAULT_NPS_CLOSING_TITLE,
@@ -31,6 +36,7 @@ export type FormQuestionInput = {
   prompt: string;
   required: boolean;
   options: QuestionOptions;
+  visibility?: QuestionVisibility | null;
 };
 
 export type FormInput = {
@@ -103,7 +109,7 @@ export function defaultOptionsForType(type: QuestionType): QuestionOptions {
         closingLogoUrl: "",
       };
     case "CONTACT_INFO":
-      return {};
+      return { companyMode: "free", companies: [] };
     default:
       return { placeholder: "" };
   }
@@ -148,6 +154,13 @@ export function validateFormInput(input: FormInput): Record<string, string> {
       "Anonymous surveys cannot include contact information questions.";
   }
 
+  const indexById = new Map<string, number>();
+  input.questions.forEach((question, index) => {
+    if (question.id) {
+      indexById.set(question.id, index);
+    }
+  });
+
   input.questions.forEach((question, index) => {
     const prefix = `questions.${index}`;
 
@@ -165,9 +178,73 @@ export function validateFormInput(input: FormInput): Record<string, string> {
     if (optionError) {
       errors[`${prefix}.options`] = optionError;
     }
+
+    const visibilityError = validateQuestionVisibility(
+      question.visibility,
+      index,
+      input.questions,
+      indexById,
+    );
+    if (visibilityError) {
+      errors[`${prefix}.visibility`] = visibilityError;
+    }
   });
 
   return errors;
+}
+
+function validateQuestionVisibility(
+  visibility: QuestionVisibility | null | undefined,
+  index: number,
+  questions: FormInput["questions"],
+  indexById: Map<string, number>,
+): string | null {
+  if (!visibility) {
+    return null;
+  }
+
+  if (visibility.match !== "all" && visibility.match !== "any") {
+    return "Invalid branching match mode.";
+  }
+
+  if (!Array.isArray(visibility.conditions) || visibility.conditions.length === 0) {
+    return null;
+  }
+
+  for (const condition of visibility.conditions) {
+    if (!condition.questionId) {
+      return "Choose a question for each branching rule.";
+    }
+
+    const targetIndex = indexById.get(condition.questionId);
+    if (targetIndex === undefined) {
+      return "Branching rules must reference a question in this survey.";
+    }
+    if (targetIndex >= index) {
+      return "Branching rules can only depend on earlier questions.";
+    }
+
+    if (!isBranchOperator(condition.operator)) {
+      return "Invalid branching condition.";
+    }
+
+    const targetType = questions[targetIndex].type;
+    if (!operatorsForType(targetType).includes(condition.operator)) {
+      return "That condition can't be used with the selected question.";
+    }
+
+    if (operatorRequiresValue(condition.operator)) {
+      if (
+        condition.value === undefined ||
+        condition.value === null ||
+        (typeof condition.value === "string" && condition.value.trim() === "")
+      ) {
+        return "Enter a value for each branching rule.";
+      }
+    }
+  }
+
+  return null;
 }
 
 function validateQuestionOptions(
@@ -348,8 +425,18 @@ function validateQuestionOptions(
       }
       return null;
     }
-    case "CONTACT_INFO":
+    case "CONTACT_INFO": {
+      const contactInfo = options as ContactInfoOptions;
+      if (contactInfo.companyMode === "dropdown") {
+        if (!Array.isArray(contactInfo.companies) || contactInfo.companies.length === 0) {
+          return "Add at least one company for the dropdown.";
+        }
+        if (contactInfo.companies.some((c) => typeof c !== "string" || !c.trim())) {
+          return "Each company name must be a non-empty string.";
+        }
+      }
       return null;
+    }
     default:
       return "Unsupported question type.";
   }
@@ -371,7 +458,41 @@ export function normalizeFormInput(input: FormInput): FormInput {
       prompt: question.prompt.trim(),
       required: question.required,
       options: normalizeQuestionOptions(question.type, question.options),
+      visibility: normalizeQuestionVisibility(question.visibility),
     })),
+  };
+}
+
+function normalizeQuestionVisibility(
+  visibility: QuestionVisibility | null | undefined,
+): QuestionVisibility | null {
+  if (!visibility || !Array.isArray(visibility.conditions)) {
+    return null;
+  }
+
+  const conditions: BranchCondition[] = visibility.conditions
+    .filter((condition) => condition && condition.questionId && condition.operator)
+    .map((condition) => {
+      const normalized: BranchCondition = {
+        questionId: condition.questionId,
+        operator: condition.operator,
+      };
+      if (operatorRequiresValue(condition.operator) && condition.value !== undefined) {
+        normalized.value =
+          typeof condition.value === "string"
+            ? condition.value.trim()
+            : condition.value;
+      }
+      return normalized;
+    });
+
+  if (conditions.length === 0) {
+    return null;
+  }
+
+  return {
+    match: visibility.match === "any" ? "any" : "all",
+    conditions,
   };
 }
 
@@ -488,8 +609,13 @@ function normalizeQuestionOptions(
           : {}),
       };
     }
-    case "CONTACT_INFO":
-      return {};
+    case "CONTACT_INFO": {
+      const contactInfo = options as ContactInfoOptions;
+      return {
+        companyMode: contactInfo.companyMode ?? "free",
+        companies: contactInfo.companies ?? [],
+      };
+    }
     default:
       return options;
   }
