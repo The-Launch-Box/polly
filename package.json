@@ -10,7 +10,8 @@
     "lint": "eslint",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "db:sync-tenants": "tsx --tsconfig tsconfig.json scripts/sync-tenants.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",
@@ -24,7 +25,8 @@
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "recharts": "^3.9.1",
-    "tsx": "^4.22.4"
+    "tsx": "^4.22.4",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -32,6 +34,7 @@
     "@types/pg": "^8.15.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/xlsx": "^0.0.35",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "tailwindcss": "^4",
