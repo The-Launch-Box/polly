@@ -25,6 +25,10 @@ export const authConfig = {
   secret: process.env.AUTH_SECRET,
   trustHost: true,
   session: { strategy: "jwt" },
+  pages: {
+    // Other AccessDenied cases (missing oid, provisioning failure, etc.)
+    error: "/unauthorized",
+  },
   callbacks: {
     /**
      * Middleware gate only. Org/role enrichment lives in auth.ts (Node) and is

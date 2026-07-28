@@ -47,7 +47,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       const orgDef = findOrganizationByEmail(email);
       if (!orgDef) {
         console.warn(`Sign-in rejected: unregistered email domain (${email})`);
-        return false;
+        // Redirect to branded page instead of Auth.js AccessDenied / Microsoft default.
+        return "/unauthorized";
       }
 
       const oid = entraOidFromProfile(profile);
