@@ -15,6 +15,7 @@ import type {
   AttachmentOptions,
   NpsOptions,
   NpsContactField,
+  ContactInfoOptions,
   QuestionVisibility,
   BranchCondition,
 } from "@/lib/types";
@@ -108,7 +109,7 @@ export function defaultOptionsForType(type: QuestionType): QuestionOptions {
         closingLogoUrl: "",
       };
     case "CONTACT_INFO":
-      return {};
+      return { companyMode: "free", companies: [] };
     default:
       return { placeholder: "" };
   }
@@ -424,8 +425,18 @@ function validateQuestionOptions(
       }
       return null;
     }
-    case "CONTACT_INFO":
+    case "CONTACT_INFO": {
+      const contactInfo = options as ContactInfoOptions;
+      if (contactInfo.companyMode === "dropdown") {
+        if (!Array.isArray(contactInfo.companies) || contactInfo.companies.length === 0) {
+          return "Add at least one company for the dropdown.";
+        }
+        if (contactInfo.companies.some((c) => typeof c !== "string" || !c.trim())) {
+          return "Each company name must be a non-empty string.";
+        }
+      }
       return null;
+    }
     default:
       return "Unsupported question type.";
   }
@@ -598,8 +609,13 @@ function normalizeQuestionOptions(
           : {}),
       };
     }
-    case "CONTACT_INFO":
-      return {};
+    case "CONTACT_INFO": {
+      const contactInfo = options as ContactInfoOptions;
+      return {
+        companyMode: contactInfo.companyMode ?? "free",
+        companies: contactInfo.companies ?? [],
+      };
+    }
     default:
       return options;
   }

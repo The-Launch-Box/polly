@@ -1,21 +1,28 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
+import { redirect } from "next/navigation";
 import { getCompanyTheme } from "@/lib/company-themes";
+import { AuthzError, requireActor } from "@/lib/session";
+import { listAccessibleForms } from "@/lib/tenant-forms";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminFormsPage() {
-  const forms = await prisma.form.findMany({
-    orderBy: { createdAt: "desc" },
-    include: {
-      _count: {
-        select: {
-          questions: true,
-          submissions: true,
-        },
-      },
-    },
-  });
+  let forms;
+  let showOwnerEmail = false;
+  try {
+    const actor = await requireActor();
+    showOwnerEmail =
+      actor.platformRole === "SUPERADMIN" ||
+      actor.orgRole === "MANAGER" ||
+      actor.orgRole === "ADMIN" ||
+      actor.orgRole === "OWNER";
+    forms = await listAccessibleForms(actor);
+  } catch (error) {
+    if (error instanceof AuthzError && error.status === 401) {
+      redirect("/api/auth/signin?callbackUrl=/admin/forms");
+    }
+    throw error;
+  }
 
   return (
     <>
@@ -69,6 +76,14 @@ export default async function AdminFormsPage() {
                     {form._count.submissions} submission
                     {form._count.submissions === 1 ? "" : "s"}
                   </p>
+                  {showOwnerEmail && (
+                    <p className="mt-1 text-sm text-zinc-500">
+                      Owner:{" "}
+                      <span className="font-medium text-zinc-700">
+                        {form.ownerEmail ?? "Unknown user"}
+                      </span>
+                    </p>
+                  )}
                   {form.description && (
                     <p className="mt-2 text-sm text-zinc-600">
                       {form.description}
@@ -87,6 +102,12 @@ export default async function AdminFormsPage() {
                     className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-800 transition hover:border-zinc-500"
                   >
                     Edit
+                  </Link>
+                  <Link
+                    href={`/admin/forms/${form.slug}/sharing`}
+                    className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-800 transition hover:border-zinc-500"
+                  >
+                    Sharing
                   </Link>
                   <Link
                     href={`/q/${form.slug}`}

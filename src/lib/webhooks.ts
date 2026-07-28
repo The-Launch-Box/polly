@@ -33,7 +33,7 @@ export async function fireWebhooks(
     webhooks.map(async (webhook) => {
       const canSendAnswers = webhook.includeAnswers && isHttps(webhook.url);
       const payload = canSendAnswers
-        ? { ...basePayload, answers: answers.map((a) => ({ questionId: a.questionId, value: a.value })) }
+        ? { ...basePayload, answers: Object.fromEntries(answers.map((a) => [a.questionId, a.value])) }
         : basePayload;
       const headers: Record<string, string> = { "Content-Type": "application/json" };
       if (webhook.secret) headers["x-secret"] = webhook.secret;

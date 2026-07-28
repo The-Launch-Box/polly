@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { QuestionType } from "@/generated/prisma/enums";
 import { validateAttachmentFile } from "@/lib/attachments-shared";
 import { saveAttachmentFile } from "@/lib/attachments";
+import { resolveFormRoute } from "@/lib/forms";
 import { prisma } from "@/lib/prisma";
 import { fireWebhooks } from "@/lib/webhooks";
 import { getVisibleQuestionIds } from "@/lib/branching";
@@ -255,14 +256,24 @@ export async function POST(
     );
   }
 
-  const form = await prisma.form.findUnique({
-    where: { slug },
-    include: {
-      questions: {
-        orderBy: { order: "asc" },
-      },
-    },
-  });
+  const route = await resolveFormRoute(slug);
+  const form = route
+    ? await prisma.form.findFirst({
+        where: { id: route.formId, organizationId: route.organizationId },
+        include: {
+          questions: {
+            orderBy: { order: "asc" },
+          },
+        },
+      })
+    : await prisma.form.findUnique({
+        where: { slug },
+        include: {
+          questions: {
+            orderBy: { order: "asc" },
+          },
+        },
+      });
 
   if (!form) {
     return NextResponse.json({ error: "Form not found." }, { status: 404 });
