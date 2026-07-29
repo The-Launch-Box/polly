@@ -53,7 +53,7 @@ COPY --from=prod-deps --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/src/generated ./src/generated
-COPY --from=builder --chown=nextjs:nodejs /app/src/lib/pg-adapter.ts ./src/lib/pg-adapter.ts
+COPY --from=builder --chown=nextjs:nodejs /app/src/lib ./src/lib
 
 RUN mkdir -p /tmp/polly-uploads /app/.uploads /app/.next/cache \
   && chown -R nextjs:nodejs /app /tmp/polly-uploads
