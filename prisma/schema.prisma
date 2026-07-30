@@ -7,17 +7,119 @@ datasource db {
   provider = "postgresql"
 }
 
+// ── Shared catalog + survey tables (public schema) ───────────────────────────
+// Organizations / users / memberships / public URL routes live in public.
+// Survey rows are also queried from public with organizationId isolation
+// (Prisma always qualifies public."Form"). Each org also has a physical
+// Postgres schema tenant_<slug>; form rows are mirrored there on write for
+// per-company schema separation inside the same Azure database.
+
+model Organization {
+  id           String   @id @default(cuid())
+  name         String
+  slug         String   @unique
+  emailDomain  String   @unique
+  schemaName   String   @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships OrganizationMembership[]
+  formRoutes  PublicFormRoute[]
+}
+
+model User {
+  id                     String    @id @default(cuid())
+  email                  String    @unique
+  name                   String?
+  entraOid               String    @unique
+  platformRole           PlatformRole?
+  /// Platform superadmin only: which org console is active (defaults to home org).
+  activeOrganizationId   String?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  memberships OrganizationMembership[]
+}
+
+model OrganizationMembership {
+  id             String  @id @default(cuid())
+  userId         String
+  organizationId String
+  role           OrgRole @default(CREATOR)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+}
+
+/// Global public quiz URL index: /q/[slug] → tenant schema + form id.
+model PublicFormRoute {
+  id             String   @id @default(cuid())
+  slug           String   @unique
+  organizationId String
+  formId         String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([formId])
+}
+
+enum OrgRole {
+  CREATOR
+  MANAGER
+  ADMIN
+  OWNER
+}
+
+enum PlatformRole {
+  SUPERADMIN
+}
+
+enum FormAccessRole {
+  VIEWER
+  ANALYST
+  COLLABORATOR
+}
+
+// ── Survey / ACL tables (queried in public; mirrored into tenant_* schemas) ──
+
 model Form {
-  id          String       @id @default(cuid())
-  slug        String       @unique
-  title       String
-  description String?
-  themeId     String       @default("default")
-  anonymous   Boolean      @default(false)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  questions   Question[]
-  submissions Submission[]
+  id             String       @id @default(cuid())
+  slug           String       @unique
+  title          String
+  description    String?
+  themeId        String       @default("default")
+  anonymous      Boolean      @default(false)
+  organizationId String
+  ownerUserId    String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  questions      Question[]
+  submissions    Submission[]
+  webhooks       Webhook[]
+  access         FormAccess[]
+
+  @@index([ownerUserId])
+  @@index([organizationId])
+}
+
+model Webhook {
+  id             String  @id @default(cuid())
+  formId         String
+  form           Form    @relation(fields: [formId], references: [id], onDelete: Cascade)
+  name           String
+  url            String
+  includeAnswers Boolean @default(false)
+  secret         String?
+
+  @@index([formId])
 }
 
 enum QuestionType {
@@ -33,17 +135,18 @@ enum QuestionType {
 }
 
 model Question {
-  id        String       @id @default(cuid())
-  formId    String
-  form      Form         @relation(fields: [formId], references: [id], onDelete: Cascade)
-  order     Int
-  type      QuestionType
-  prompt    String
-  required  Boolean      @default(true)
-  options   Json?
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-  answers   Answer[]
+  id         String       @id @default(cuid())
+  formId     String
+  form       Form         @relation(fields: [formId], references: [id], onDelete: Cascade)
+  order      Int
+  type       QuestionType
+  prompt     String
+  required   Boolean      @default(true)
+  options    Json?
+  visibility Json?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  answers    Answer[]
 
   @@unique([formId, order])
   @@index([formId])
@@ -73,4 +176,50 @@ model Answer {
   @@unique([submissionId, questionId])
   @@index([submissionId])
   @@index([questionId])
+}
+
+model Group {
+  id              String   @id @default(cuid())
+  organizationId  String
+  name            String
+  slug            String
+  createdByUserId String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  members         GroupMembership[]
+  formAccess      FormAccess[]
+
+  @@unique([organizationId, slug])
+  @@index([organizationId])
+  @@index([createdByUserId])
+}
+
+model GroupMembership {
+  id        String   @id @default(cuid())
+  groupId   String
+  userId    String
+  createdAt DateTime @default(now())
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([userId])
+}
+
+model FormAccess {
+  id        String         @id @default(cuid())
+  formId    String
+  userId    String?
+  groupId   String?
+  role      FormAccessRole
+  canExport Boolean        @default(false)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  form  Form   @relation(fields: [formId], references: [id], onDelete: Cascade)
+  group Group? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([formId])
+  @@index([userId])
+  @@index([groupId])
 }
