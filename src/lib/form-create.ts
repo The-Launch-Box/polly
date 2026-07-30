@@ -2,6 +2,7 @@ import { QuestionType } from "@/generated/prisma/enums";
 import { COMPANY_THEME_IDS, DEFAULT_THEME_ID } from "@/lib/company-themes";
 import {
   isQuestionTypeValue,
+  isSectionType,
   type QuestionTypeValue,
 } from "@/lib/question-types";
 import type {
@@ -16,6 +17,7 @@ import type {
   NpsOptions,
   NpsContactField,
   ContactInfoOptions,
+  SectionOptions,
   QuestionVisibility,
   BranchCondition,
 } from "@/lib/types";
@@ -110,6 +112,8 @@ export function defaultOptionsForType(type: QuestionType): QuestionOptions {
       };
     case "CONTACT_INFO":
       return { companyMode: "free", companies: [] };
+    case "SECTION":
+      return { description: "" };
     default:
       return { placeholder: "" };
   }
@@ -149,6 +153,13 @@ export function validateFormInput(input: FormInput): Record<string, string> {
     return errors;
   }
 
+  const answerableCount = input.questions.filter(
+    (question) => !isSectionType(question.type),
+  ).length;
+  if (answerableCount === 0) {
+    errors.questions = "Add at least one question (sections alone are not enough).";
+  }
+
   if (input.anonymous && input.questions.some((question) => question.type === "CONTACT_INFO")) {
     errors.questions =
       "Anonymous surveys cannot include contact information questions.";
@@ -163,11 +174,16 @@ export function validateFormInput(input: FormInput): Record<string, string> {
 
   input.questions.forEach((question, index) => {
     const prefix = `questions.${index}`;
+    const isSection = isSectionType(question.type);
 
     if (!question.prompt?.trim()) {
-      errors[`${prefix}.prompt`] = "Question prompt is required.";
+      errors[`${prefix}.prompt`] = isSection
+        ? "Section title is required."
+        : "Question prompt is required.";
     } else if (question.prompt.length > 500) {
-      errors[`${prefix}.prompt`] = "Prompt must be at most 500 characters.";
+      errors[`${prefix}.prompt`] = isSection
+        ? "Section title must be at most 500 characters."
+        : "Prompt must be at most 500 characters.";
     }
 
     if (question.order !== index + 1) {
@@ -229,6 +245,9 @@ function validateQuestionVisibility(
     }
 
     const targetType = questions[targetIndex].type;
+    if (isSectionType(targetType)) {
+      return "Branching rules cannot depend on sections.";
+    }
     if (!operatorsForType(targetType).includes(condition.operator)) {
       return "That condition can't be used with the selected question.";
     }
@@ -437,6 +456,19 @@ function validateQuestionOptions(
       }
       return null;
     }
+    case "SECTION": {
+      const section = options as SectionOptions;
+      if (
+        section.description !== undefined &&
+        typeof section.description !== "string"
+      ) {
+        return "Section description must be text.";
+      }
+      if (section.description && section.description.length > 1000) {
+        return "Section description must be at most 1000 characters.";
+      }
+      return null;
+    }
     default:
       return "Unsupported question type.";
   }
@@ -456,7 +488,7 @@ export function normalizeFormInput(input: FormInput): FormInput {
       order: index + 1,
       type: question.type,
       prompt: question.prompt.trim(),
-      required: question.required,
+      required: isSectionType(question.type) ? false : question.required,
       options: normalizeQuestionOptions(question.type, question.options),
       visibility: normalizeQuestionVisibility(question.visibility),
     })),
@@ -614,6 +646,14 @@ function normalizeQuestionOptions(
       return {
         companyMode: contactInfo.companyMode ?? "free",
         companies: contactInfo.companies ?? [],
+      };
+    }
+    case "SECTION": {
+      const section = options as SectionOptions;
+      return {
+        ...(section.description?.trim()
+          ? { description: section.description.trim() }
+          : {}),
       };
     }
     default:

@@ -37,6 +37,8 @@ const PRESENCE_OPERATORS: BranchOperator[] = ["answered", "not_answered"];
  */
 export function operatorsForType(type: QuestionType): BranchOperator[] {
   switch (type) {
+    case QuestionType.SECTION:
+      return [];
     case QuestionType.SINGLE_CHOICE:
       return ["equals", "not_equals", ...PRESENCE_OPERATORS];
     case QuestionType.MULTIPLE_CHOICE:

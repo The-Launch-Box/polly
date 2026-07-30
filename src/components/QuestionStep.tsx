@@ -6,7 +6,7 @@ import {
   emptyContactInfoAnswer,
   isContactInfoAnswer,
 } from "@/lib/contact-info";
-import type { ContactInfoAnswer, ContactInfoOptions, FormQuestion, HeatmapPoint } from "@/lib/types";
+import type { ContactInfoAnswer, ContactInfoOptions, FormQuestion, HeatmapPoint, SectionOptions } from "@/lib/types";
 import {
   isAttachmentAnswer,
   isAttachmentOptions,
@@ -17,6 +17,7 @@ import {
   isShortTextOptions,
   isSliderOptions,
 } from "@/lib/types";
+import { isSectionType } from "@/lib/question-types";
 
 type QuestionStepProps = {
   question: FormQuestion;
@@ -25,6 +26,40 @@ type QuestionStepProps = {
 };
 
 export function QuestionStep({ question, value, onChange }: QuestionStepProps) {
+  if (isSectionType(question.type)) {
+    const description =
+      question.options &&
+      typeof question.options === "object" &&
+      "description" in question.options
+        ? String((question.options as SectionOptions).description ?? "")
+        : "";
+
+    return (
+      <div className="py-4">
+        <p
+          className="text-sm font-medium uppercase tracking-wide"
+          style={{ color: "var(--theme-text-muted)" }}
+        >
+          Section
+        </p>
+        <h2
+          className="mt-3 text-3xl font-semibold leading-snug sm:text-4xl"
+          style={{ color: "var(--theme-text)" }}
+        >
+          {question.prompt}
+        </h2>
+        {description.trim() ? (
+          <p
+            className="mt-4 text-base leading-relaxed sm:text-lg"
+            style={{ color: "var(--theme-text-muted)" }}
+          >
+            {description.trim()}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div>
       <h2

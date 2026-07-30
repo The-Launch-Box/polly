@@ -8,11 +8,11 @@ services:
     environment:
       POSTGRES_USER: typeform
       POSTGRES_PASSWORD: typeform
-      POSTGRES_DB: typeform
+      POSTGRES_DB: polly-db
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U typeform -d typeform"]
+      test: ["CMD-SHELL", "pg_isready -U typeform -d polly-db"]
       interval: 5s
       timeout: 5s
       retries: 5

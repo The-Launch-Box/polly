@@ -222,6 +222,9 @@ function validateAnswer(
     case QuestionType.CONTACT_INFO: {
       return validateContactInfoAnswer(value, required, anonymous);
     }
+    case QuestionType.SECTION:
+      // Sections are structural markers and never collect answers.
+      return null;
     default:
       return "Unsupported question type.";
   }
@@ -316,6 +319,9 @@ export async function POST(
     if (!visibleQuestionIds.has(question.id)) {
       continue;
     }
+    if (question.type === QuestionType.SECTION) {
+      continue;
+    }
     const answer = answersByQuestion.get(question.id);
     const value =
       question.type === QuestionType.ATTACHMENT
@@ -351,6 +357,9 @@ export async function POST(
       const answerRows = await Promise.all(
         form.questions.map(async (question) => {
           if (!visibleQuestionIds.has(question.id)) {
+            return null;
+          }
+          if (question.type === QuestionType.SECTION) {
             return null;
           }
           const answer = answersByQuestion.get(question.id);
