@@ -132,6 +132,7 @@ enum QuestionType {
   ATTACHMENT
   NPS
   CONTACT_INFO
+  SECTION
 }
 
 model Question {

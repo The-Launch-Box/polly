@@ -132,6 +132,10 @@ function summarizeQuestion(
   question: QuestionRecord,
   answers: AnswerRecord[],
 ): Pick<QuestionInsight, "summary" | "choiceBuckets" | "numericAvg" | "numericDistribution" | "textResponses"> {
+  if (question.type === QuestionType.SECTION) {
+    return { summary: "Section divider (no responses)" };
+  }
+
   const values = answers.map((answer) => answer.value);
 
   if (
@@ -311,6 +315,7 @@ export function buildSurveyInsights(
   const questions = form.questions
     .slice()
     .sort((a, b) => a.order - b.order)
+    .filter((question) => question.type !== QuestionType.SECTION)
     .map((question) => {
       const questionAnswers = submissions.flatMap((submission) =>
         submission.answers
@@ -345,6 +350,7 @@ export function buildSurveyInsights(
     answers: form.questions
       .slice()
       .sort((a, b) => a.order - b.order)
+      .filter((question) => question.type !== QuestionType.SECTION)
       .map((question) => {
         const answer = submission.answers.find(
           (item) => item.questionId === question.id,

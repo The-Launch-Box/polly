@@ -90,6 +90,10 @@ export type ContactInfoOptions = {
   companies?: string[];
 };
 
+export type SectionOptions = {
+  description?: string;
+};
+
 export type ContactInfoAnswer = {
   firstName: string;
   lastName: string;
@@ -106,7 +110,8 @@ export type QuestionOptions =
   | HeatmapOptions
   | AttachmentOptions
   | NpsOptions
-  | ContactInfoOptions;
+  | ContactInfoOptions
+  | SectionOptions;
 
 export type BranchOperator =
   | "equals"
@@ -291,6 +296,25 @@ export function isNpsAnswer(value: unknown): value is NpsAnswer {
     typeof (value as NpsAnswer).score === "number" &&
     ((value as NpsAnswer).path === "promoter" ||
       (value as NpsAnswer).path === "detractor")
+  );
+}
+
+export function isSectionOptions(
+  options: QuestionOptions | null,
+): options is SectionOptions {
+  return (
+    options !== null &&
+    typeof options === "object" &&
+    !("min" in options) &&
+    !("choices" in options) &&
+    !("imageUrl" in options) &&
+    !("firmName" in options) &&
+    !("allowedKinds" in options) &&
+    !("maxSizeMb" in options) &&
+    !("companyMode" in options) &&
+    !("companies" in options) &&
+    !("placeholder" in options) &&
+    !("maxLength" in options)
   );
 }
 

@@ -67,6 +67,13 @@ export function FormPlayer({ form }: FormPlayerProps) {
   const visibleErrorFlags = visibleIndexList.map(
     (index) => questionErrors[questions[index].id] ?? false,
   );
+  const isSectionStep = currentQuestion?.type === "SECTION";
+  const answerableVisibleCount = visibleIndexList.filter(
+    (index) => questions[index].type !== "SECTION",
+  ).length;
+  const answerableVisiblePos = visibleIndexList
+    .slice(0, Math.max(currentVisiblePos, 0) + 1)
+    .filter((index) => questions[index].type !== "SECTION").length;
 
   function visibleListFor(nextAnswers: Record<string, unknown>): number[] {
     const visibleIds = getVisibleQuestionIds(questions, nextAnswers);
@@ -178,7 +185,9 @@ export function FormPlayer({ form }: FormPlayerProps) {
 
   function validateQuestion(questionIndex: number): string | null {
     const question = questions[questionIndex];
-    if (!question || question.type === "NPS") return null;
+    if (!question || question.type === "NPS" || question.type === "SECTION") {
+      return null;
+    }
 
     const value = answers[question.id];
 
@@ -455,7 +464,11 @@ export function FormPlayer({ form }: FormPlayerProps) {
           className="text-sm font-medium transition-opacity duration-300"
           style={{ color: "var(--theme-text-muted)" }}
         >
-          Question {currentVisiblePos + 1} of {visibleCount}
+          {isSectionStep
+            ? currentQuestion.prompt.trim() || "Section"
+            : answerableVisibleCount > 0
+              ? `Question ${answerableVisiblePos} of ${answerableVisibleCount}`
+              : null}
         </p>
         <ProgressBar
           value={progress}
@@ -526,7 +539,7 @@ export function FormPlayer({ form }: FormPlayerProps) {
                 color: "var(--theme-primary-foreground)",
               }}
             >
-              {isSubmitting ? "Submitting..." : isLast ? "Submit" : "Next"}
+              {isSubmitting ? "Submitting..." : isLast ? "Submit" : isSectionStep ? "Continue" : "Next"}
             </button>
           </div>
         )}

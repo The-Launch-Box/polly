@@ -14,6 +14,7 @@ import { DEFAULT_THEME_ID } from "@/lib/company-themes";
 import {
   asQuestionType,
   isQuestionTypeValue,
+  isSectionType,
   QUESTION_TYPE_LABELS,
   QUESTION_TYPE_VALUES,
 } from "@/lib/question-types";
@@ -44,6 +45,7 @@ import type {
   NpsContactField,
   NpsLink,
   ContactInfoOptions,
+  SectionOptions,
   BranchCondition,
   BranchOperator,
   QuestionVisibility,
@@ -51,6 +53,18 @@ import type {
 import { isChoiceListOptions } from "@/lib/types";
 
 type QuestionDraft = FormQuestionInput & { key: string };
+
+type BuilderGroup =
+  | {
+      kind: "ungrouped";
+      questions: { question: QuestionDraft; index: number }[];
+    }
+  | {
+      kind: "section";
+      section: QuestionDraft;
+      sectionIndex: number;
+      questions: { question: QuestionDraft; index: number }[];
+    };
 
 function createQuestionDraft(type: QuestionType = "SCALE"): QuestionDraft {
   // A stable id is assigned up front (not just for saved questions) so branching
@@ -66,6 +80,68 @@ function createQuestionDraft(type: QuestionType = "SCALE"): QuestionDraft {
     options: defaultOptionsForType(type),
     visibility: null,
   };
+}
+
+function createSectionDraft(): QuestionDraft {
+  const id = crypto.randomUUID();
+  return {
+    key: id,
+    id,
+    order: 0,
+    type: "SECTION",
+    prompt: "",
+    required: false,
+    options: defaultOptionsForType("SECTION"),
+    visibility: null,
+  };
+}
+
+function groupQuestionsForBuilder(questions: QuestionDraft[]): BuilderGroup[] {
+  const groups: BuilderGroup[] = [];
+  let current: BuilderGroup | null = null;
+
+  questions.forEach((question, index) => {
+    if (isSectionType(question.type)) {
+      current = {
+        kind: "section",
+        section: question,
+        sectionIndex: index,
+        questions: [],
+      };
+      groups.push(current);
+      return;
+    }
+
+    if (!current || current.kind === "ungrouped") {
+      if (!current) {
+        current = { kind: "ungrouped", questions: [] };
+        groups.push(current);
+      }
+      current.questions.push({ question, index });
+      return;
+    }
+
+    current.questions.push({ question, index });
+  });
+
+  return groups;
+}
+
+function answerableDisplayNumber(
+  questions: QuestionDraft[],
+  index: number,
+): number {
+  let number = 0;
+  for (let i = 0; i <= index; i++) {
+    if (!isSectionType(questions[i].type)) {
+      number += 1;
+    }
+  }
+  return number;
+}
+
+function answerableCount(questions: QuestionDraft[]): number {
+  return questions.filter((question) => !isSectionType(question.type)).length;
 }
 
 function createQuestionDraftFromExisting(question: FormQuestionInput): QuestionDraft {
@@ -113,7 +189,7 @@ export function FormBuilder({
   const [questions, setQuestions] = useState<QuestionDraft[]>(() =>
     initialData?.questions.length
       ? initialData.questions.map(createQuestionDraftFromExisting)
-      : [createQuestionDraft()],
+      : [createSectionDraft(), createQuestionDraft()],
   );
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -137,6 +213,11 @@ export function FormBuilder({
   function expandAll() {
     setCollapsedKeys(new Set());
   }
+
+  const builderGroups = useMemo(
+    () => groupQuestionsForBuilder(questions),
+    [questions],
+  );
 
   useEffect(() => {
     function onScroll() {
@@ -193,20 +274,64 @@ export function FormBuilder({
     );
   }
 
-  function addQuestion() {
-    setQuestions((current) => [...current, createQuestionDraft()]);
+  function addSection() {
+    setQuestions((current) => [...current, createSectionDraft()]);
+  }
+
+  function addQuestionAfter(afterIndex: number) {
+    setQuestions((current) => {
+      const next = [...current];
+      next.splice(afterIndex + 1, 0, createQuestionDraft());
+      return next;
+    });
+  }
+
+  function addQuestionToGroup(group: BuilderGroup) {
+    if (group.kind === "section") {
+      const lastIndex =
+        group.questions.length > 0
+          ? group.questions[group.questions.length - 1].index
+          : group.sectionIndex;
+      addQuestionAfter(lastIndex);
+      return;
+    }
+
+    if (group.questions.length === 0) {
+      setQuestions((current) => [...current, createQuestionDraft()]);
+      return;
+    }
+    addQuestionAfter(group.questions[group.questions.length - 1].index);
   }
 
   function removeQuestion(key: string) {
-    setQuestions((current) =>
-      current.length === 1 ? current : current.filter((q) => q.key !== key),
-    );
+    setQuestions((current) => {
+      const target = current.find((q) => q.key === key);
+      if (!target) return current;
+
+      if (isSectionType(target.type)) {
+        return current.filter((q) => q.key !== key);
+      }
+
+      if (answerableCount(current) <= 1) {
+        return current;
+      }
+
+      return current.filter((q) => q.key !== key);
+    });
   }
 
   function moveQuestion(key: string, direction: -1 | 1) {
     const index = questions.findIndex((q) => q.key === key);
+    if (index < 0) return;
+
+    const item = questions[index];
+    if (isSectionType(item.type)) {
+      moveSectionBlock(key, direction);
+      return;
+    }
+
     const target = index + direction;
-    if (index < 0 || target < 0 || target >= questions.length) return;
+    if (target < 0 || target >= questions.length) return;
 
     setQuestions((current) => {
       const next = [...current];
@@ -227,6 +352,40 @@ export function FormBuilder({
       }
       return remapped;
     });
+  }
+
+  function moveSectionBlock(sectionKey: string, direction: -1 | 1) {
+    setQuestions((current) => {
+      const groups = groupQuestionsForBuilder(current);
+      const groupIndex = groups.findIndex(
+        (group) => group.kind === "section" && group.section.key === sectionKey,
+      );
+      if (groupIndex < 0) return current;
+
+      const targetIndex = groupIndex + direction;
+      if (targetIndex < 0 || targetIndex >= groups.length) return current;
+
+      const target = groups[targetIndex];
+      // Keep ungrouped questions at the top; don't swap a section into that slot.
+      if (target.kind === "ungrouped") return current;
+
+      const reordered = [...groups];
+      [reordered[groupIndex], reordered[targetIndex]] = [
+        reordered[targetIndex],
+        reordered[groupIndex],
+      ];
+
+      return reordered.flatMap((group) => {
+        if (group.kind === "ungrouped") {
+          return group.questions.map((entry) => entry.question);
+        }
+        return [
+          group.section,
+          ...group.questions.map((entry) => entry.question),
+        ];
+      });
+    });
+    setFieldErrors({});
   }
 
   async function handleDelete() {
@@ -292,7 +451,7 @@ export function FormBuilder({
           order: index + 1,
           type: question.type,
           prompt: question.prompt,
-          required: question.required,
+          required: isSectionType(question.type) ? false : question.required,
           options: question.options,
           visibility: question.visibility ?? null,
         };
@@ -464,7 +623,8 @@ export function FormBuilder({
           <div>
             <h2 className="text-lg font-semibold text-zinc-900">Questions</h2>
             <p className="text-sm text-zinc-500">
-              One question per screen, in the order shown below.
+              Group questions into titled sections. One question per screen, in
+              the order shown below.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -488,10 +648,10 @@ export function FormBuilder({
             )}
             <button
               type="button"
-              onClick={addQuestion}
+              onClick={addSection}
               className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-800 transition hover:border-zinc-500"
             >
-              Add question
+              + Add section
             </button>
           </div>
         </div>
@@ -500,39 +660,81 @@ export function FormBuilder({
           <p className="text-sm text-red-600">{fieldErrors.questions}</p>
         )}
 
-        {questions.map((question, index) => (
-          <QuestionEditor
-            key={question.key}
-            index={index}
-            question={question}
-            total={questions.length}
-            anonymous={anonymous}
-            errors={fieldErrors}
-            collapsed={collapsedKeys.has(question.key)}
-            onToggleCollapse={() => toggleCollapsed(question.key)}
-            precedingQuestions={questions.slice(0, index).map((q, i) => ({
-              id: q.id ?? q.key,
-              position: i + 1,
-              prompt: q.prompt,
-              type: q.type,
-              options: q.options,
-            }))}
-            onChange={(patch) => updateQuestion(question.key, patch)}
-            onTypeChange={(type) => changeQuestionType(question.key, type)}
-            onRemove={() => removeQuestion(question.key)}
-            onMove={(direction) => moveQuestion(question.key, direction)}
-          />
+        {builderGroups.map((group, groupIndex) => (
+          <div key={group.kind === "section" ? group.section.key : "ungrouped"} className="space-y-3">
+            {group.kind === "section" ? (
+              <SectionEditor
+                index={group.sectionIndex}
+                section={group.section}
+                canMoveUp={builderGroups
+                  .slice(0, groupIndex)
+                  .some((entry) => entry.kind === "section")}
+                canMoveDown={builderGroups
+                  .slice(groupIndex + 1)
+                  .some((entry) => entry.kind === "section")}
+                errors={fieldErrors}
+                onChange={(patch) => updateQuestion(group.section.key, patch)}
+                onRemove={() => removeQuestion(group.section.key)}
+                onMove={(direction) => moveQuestion(group.section.key, direction)}
+              />
+            ) : (
+              <div className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50 px-4 py-3">
+                <p className="text-sm font-medium text-zinc-700">Ungrouped questions</p>
+                <p className="mt-0.5 text-xs text-zinc-500">
+                  Add a section above these, or leave them at the start of the survey.
+                </p>
+              </div>
+            )}
+
+            {group.questions.map(({ question, index }) => (
+              <QuestionEditor
+                key={question.key}
+                index={index}
+                displayNumber={answerableDisplayNumber(questions, index)}
+                question={question}
+                total={questions.length}
+                canRemove={answerableCount(questions) > 1}
+                anonymous={anonymous}
+                errors={fieldErrors}
+                collapsed={collapsedKeys.has(question.key)}
+                onToggleCollapse={() => toggleCollapsed(question.key)}
+                precedingQuestions={questions
+                  .slice(0, index)
+                  .filter((q) => !isSectionType(q.type))
+                  .map((q) => ({
+                    id: q.id ?? q.key,
+                    position: answerableDisplayNumber(
+                      questions,
+                      questions.findIndex((item) => item.key === q.key),
+                    ),
+                    prompt: q.prompt,
+                    type: q.type,
+                    options: q.options,
+                  }))}
+                onChange={(patch) => updateQuestion(question.key, patch)}
+                onTypeChange={(type) => changeQuestionType(question.key, type)}
+                onRemove={() => removeQuestion(question.key)}
+                onMove={(direction) => moveQuestion(question.key, direction)}
+              />
+            ))}
+
+            <button
+              type="button"
+              onClick={() => addQuestionToGroup(group)}
+              className="flex w-full items-center justify-center rounded-lg border border-dashed border-zinc-300 py-3 text-sm font-medium text-zinc-500 transition hover:border-zinc-500 hover:text-zinc-700"
+            >
+              + Add question
+            </button>
+          </div>
         ))}
 
-        {questions.length > 0 && (
-          <button
-            type="button"
-            onClick={addQuestion}
-            className="flex w-full items-center justify-center rounded-lg border border-dashed border-zinc-300 py-3 text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-600"
-          >
-            <span className="text-xl leading-none">+</span>
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={addSection}
+          className="flex w-full items-center justify-center rounded-lg border border-dashed border-zinc-300 py-3 text-sm font-medium text-zinc-500 transition hover:border-zinc-500 hover:text-zinc-700"
+        >
+          + Add section
+        </button>
       </section>
 
       {isEdit && (
@@ -603,10 +805,110 @@ type PrecedingQuestion = {
   options: QuestionOptions;
 };
 
+function SectionEditor({
+  index,
+  section,
+  canMoveUp,
+  canMoveDown,
+  errors,
+  onChange,
+  onRemove,
+  onMove,
+}: {
+  index: number;
+  section: QuestionDraft;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  errors: Record<string, string>;
+  onChange: (patch: Partial<QuestionDraft>) => void;
+  onRemove: () => void;
+  onMove: (direction: -1 | 1) => void;
+}) {
+  const prefix = `questions.${index}`;
+  const titleError = errors[`${prefix}.prompt`];
+  const optionsError = errors[`${prefix}.options`];
+  const options = section.options as SectionOptions;
+  const description = options.description ?? "";
+
+  return (
+    <article className="rounded-xl border border-zinc-300 bg-zinc-50 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3 p-5">
+        <div className="min-w-0 flex-1 space-y-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+            Section
+          </p>
+          <Field
+            label="Section title"
+            htmlFor={`section-title-${section.key}`}
+            error={titleError}
+            required
+          >
+            <input
+              id={`section-title-${section.key}`}
+              value={section.prompt}
+              onChange={(event) => onChange({ prompt: event.target.value })}
+              className={inputClass(titleError)}
+              placeholder="e.g. About your experience"
+            />
+          </Field>
+          <Field
+            label="Description"
+            htmlFor={`section-description-${section.key}`}
+            error={optionsError}
+            hint="Optional text shown under the title on the section screen."
+          >
+            <textarea
+              id={`section-description-${section.key}`}
+              value={description}
+              onChange={(event) =>
+                onChange({
+                  options: { ...options, description: event.target.value },
+                })
+              }
+              rows={2}
+              className={inputClass(optionsError)}
+              placeholder="Optional intro for this group of questions"
+            />
+          </Field>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onMove(-1)}
+            disabled={!canMoveUp}
+            className="rounded border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-600 disabled:opacity-40"
+            aria-label="Move section up"
+          >
+            ↑
+          </button>
+          <button
+            type="button"
+            onClick={() => onMove(1)}
+            disabled={!canMoveDown}
+            className="rounded border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-600 disabled:opacity-40"
+            aria-label="Move section down"
+          >
+            ↓
+          </button>
+          <button
+            type="button"
+            onClick={onRemove}
+            className="rounded border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-600"
+          >
+            Remove
+          </button>
+        </div>
+      </div>
+    </article>
+  );
+}
+
 function QuestionEditor({
   index,
+  displayNumber,
   question,
   total,
+  canRemove,
   anonymous,
   errors,
   collapsed,
@@ -618,8 +920,10 @@ function QuestionEditor({
   onMove,
 }: {
   index: number;
+  displayNumber: number;
   question: QuestionDraft;
   total: number;
+  canRemove: boolean;
   anonymous: boolean;
   errors: Record<string, string>;
   collapsed: boolean;
@@ -650,7 +954,7 @@ function QuestionEditor({
           aria-expanded={!collapsed}
         >
           <span className="shrink-0 text-xs font-medium uppercase tracking-wide text-zinc-400">
-            Q{index + 1}
+            Q{displayNumber}
           </span>
           <span className="shrink-0 rounded bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">
             {QUESTION_TYPE_LABELS[question.type]}
@@ -688,7 +992,7 @@ function QuestionEditor({
           <button
             type="button"
             onClick={onRemove}
-            disabled={total === 1}
+            disabled={!canRemove}
             className="rounded border border-zinc-200 px-2 py-1 text-xs text-zinc-600 disabled:opacity-40"
           >
             Remove
