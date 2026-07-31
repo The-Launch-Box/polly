@@ -91,9 +91,8 @@ export function FormPlayer({ form }: FormPlayerProps) {
     questions[displayPage.questionIndex]?.type === "NPS";
 
   const isNonInputStep =
-    displayPage?.kind === "section-title" ||
-    (displayPage?.kind === "single" &&
-      isNonInputQuestionType(questions[displayPage.questionIndex].type));
+    displayPage?.kind === "single" &&
+    isNonInputQuestionType(questions[displayPage.questionIndex].type);
 
   const answerableQuestions = useMemo(
     () =>
@@ -567,11 +566,6 @@ export function FormPlayer({ form }: FormPlayerProps) {
         : "";
 
   const headerLabel = (() => {
-    if (displayPage.kind === "section-title") {
-      return (
-        questions[displayPage.sectionIndex].prompt.trim() || "Section"
-      );
-    }
     if (displayPage.kind === "section-body") {
       return (
         questions[displayPage.sectionIndex].prompt.trim() || "Section"
@@ -592,7 +586,7 @@ export function FormPlayer({ form }: FormPlayerProps) {
       ? questions[displayPage.questionIndex]
       : null;
   const sectionQuestion =
-    displayPage.kind === "section-title" || displayPage.kind === "section-body"
+    displayPage.kind === "section-body"
       ? questions[displayPage.sectionIndex]
       : null;
   const sectionBodyQuestions =
@@ -683,19 +677,10 @@ export function FormPlayer({ form }: FormPlayerProps) {
               canGoBack={safeCurrentPageIndex > 0}
               isSubmitting={isSubmitting}
             />
-          ) : singleQuestion ||
-            (displayPage.kind === "section-title" && sectionQuestion) ? (
+          ) : singleQuestion ? (
             <QuestionStep
-              question={
-                displayPage.kind === "section-title"
-                  ? sectionQuestion!
-                  : singleQuestion!
-              }
-              value={
-                displayPage.kind === "single"
-                  ? answers[singleQuestion!.id]
-                  : undefined
-              }
+              question={singleQuestion}
+              value={answers[singleQuestion.id]}
               onChange={setCurrentAnswer}
             />
           ) : null}
@@ -748,9 +733,6 @@ export function FormPlayer({ form }: FormPlayerProps) {
 function questionIndicesOnPage(page: SurveyPage): number[] {
   if (page.kind === "single") {
     return [page.questionIndex];
-  }
-  if (page.kind === "section-title") {
-    return [page.sectionIndex];
   }
   return page.questionIndices;
 }

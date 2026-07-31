@@ -5,7 +5,6 @@ import { isNonInputQuestionType, isSectionType } from "@/lib/question-types";
 /** One navigable screen in the survey player. */
 export type SurveyPage =
   | { kind: "single"; questionIndex: number }
-  | { kind: "section-title"; sectionIndex: number }
   | {
       kind: "section-body";
       sectionIndex: number;
@@ -14,8 +13,9 @@ export type SurveyPage =
 
 /**
  * Build player pages from the flat question list.
- * Each SECTION becomes a title slide followed by a body page of its children
- * (questions until the next SECTION). Ungrouped questions stay one-per-screen.
+ * Each SECTION becomes one scrollable page of its children (questions until the
+ * next SECTION), with the section title shown on that page. Ungrouped questions
+ * stay one-per-screen.
  */
 export function buildSurveyPages(questions: FormQuestion[]): SurveyPage[] {
   const pages: SurveyPage[] = [];
@@ -25,7 +25,6 @@ export function buildSurveyPages(questions: FormQuestion[]): SurveyPage[] {
     const question = questions[i];
     if (isSectionType(question.type)) {
       const sectionIndex = i;
-      pages.push({ kind: "section-title", sectionIndex });
       i += 1;
 
       const questionIndices: number[] = [];
@@ -58,13 +57,6 @@ export function filterVisibleSurveyPages(
   for (const page of pages) {
     if (page.kind === "single") {
       if (visibleIds.has(questions[page.questionIndex].id)) {
-        result.push(page);
-      }
-      continue;
-    }
-
-    if (page.kind === "section-title") {
-      if (visibleIds.has(questions[page.sectionIndex].id)) {
         result.push(page);
       }
       continue;
@@ -140,9 +132,6 @@ export function hasAnswerValue(
 export function pageKey(page: SurveyPage): string {
   if (page.kind === "single") {
     return `single:${page.questionIndex}`;
-  }
-  if (page.kind === "section-title") {
-    return `section-title:${page.sectionIndex}`;
   }
   return `section-body:${page.sectionIndex}`;
 }
