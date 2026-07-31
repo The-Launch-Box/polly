@@ -31,6 +31,7 @@ import {
   pointAllocationTotal,
 } from "@/lib/types";
 import { isSectionType, isTitleCardType } from "@/lib/question-types";
+import { MarkdownContent } from "@/components/MarkdownContent";
 
 type QuestionStepProps = {
   question: FormQuestion;
@@ -69,12 +70,9 @@ export function QuestionStep({
           {question.prompt}
         </h2>
         {description.trim() ? (
-          <p
-            className="mt-4 text-base leading-relaxed sm:text-lg"
-            style={{ color: "var(--theme-text-muted)" }}
-          >
-            {description.trim()}
-          </p>
+          <div className="mt-4 text-base leading-relaxed sm:text-lg">
+            <MarkdownContent content={description} themed />
+          </div>
         ) : null}
       </div>
     );

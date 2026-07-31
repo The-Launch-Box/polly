@@ -27,6 +27,7 @@ import {
 import { DEFAULT_CONTACT_INFO_PROMPT } from "@/lib/contact-info";
 import { ThemePicker } from "@/components/admin/ThemePicker";
 import { WebhookSection, type WebhookInput } from "@/components/admin/WebhookSection";
+import { MarkdownEditor } from "@/components/MarkdownEditor";
 import {
   BRANCH_OPERATOR_LABELS,
   operatorRequiresValue,
@@ -593,13 +594,15 @@ export function FormBuilder({
             label="Description"
             htmlFor="description"
             error={fieldErrors.description}
+            asDiv
           >
-            <textarea
+            <MarkdownEditor
               id="description"
               value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              rows={2}
-              className={inputClass(fieldErrors.description)}
+              onChange={setDescription}
+              rows={3}
+              maxLength={1000}
+              error={Boolean(fieldErrors.description)}
               placeholder="Optional intro shown above the first question"
             />
           </Field>
@@ -870,18 +873,20 @@ function SectionEditor({
             label="Description"
             htmlFor={`section-description-${section.key}`}
             error={optionsError}
-            hint="Optional text shown under the section title above its questions."
+            hint="Optional text shown under the section title above its questions. Use the toolbar for bold, italic, and headings."
+            asDiv
           >
-            <textarea
+            <MarkdownEditor
               id={`section-description-${section.key}`}
               value={description}
-              onChange={(event) =>
+              onChange={(next) =>
                 onChange({
-                  options: { ...options, description: event.target.value },
+                  options: { ...options, description: next },
                 })
               }
-              rows={2}
-              className={inputClass(optionsError)}
+              rows={3}
+              maxLength={1000}
+              error={Boolean(optionsError)}
               placeholder="Optional intro for this group of questions"
             />
           </Field>
@@ -2188,6 +2193,7 @@ function Field({
   error,
   hint,
   required,
+  asDiv,
   children,
 }: {
   label: string;
@@ -2195,18 +2201,32 @@ function Field({
   error?: string;
   hint?: string;
   required?: boolean;
+  /** Use a div wrapper when children include toolbar buttons (not just one input). */
+  asDiv?: boolean;
   children: React.ReactNode;
 }) {
+  const Comp = asDiv ? "div" : "label";
+
   return (
-    <label className="block" htmlFor={htmlFor}>
-      <span className="text-sm font-medium text-zinc-800">
-        {label}
-        {required && <span className="text-red-600"> *</span>}
-      </span>
+    <Comp className="block" {...(!asDiv && htmlFor ? { htmlFor } : {})}>
+      {asDiv && htmlFor ? (
+        <label
+          htmlFor={htmlFor}
+          className="text-sm font-medium text-zinc-800"
+        >
+          {label}
+          {required && <span className="text-red-600"> *</span>}
+        </label>
+      ) : (
+        <span className="text-sm font-medium text-zinc-800">
+          {label}
+          {required && <span className="text-red-600"> *</span>}
+        </span>
+      )}
       <div className="mt-1.5">{children}</div>
       {hint && !error && <p className="mt-1 text-xs text-zinc-500">{hint}</p>}
       {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
-    </label>
+    </Comp>
   );
 }
 

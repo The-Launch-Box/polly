@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { NpsFlow } from "@/components/NpsFlow";
 import { QuestionStep } from "@/components/QuestionStep";
+import { MarkdownContent } from "@/components/MarkdownContent";
 import type { FormQuestion, NpsAnswer, SectionOptions } from "@/lib/types";
 import {
   hasAnswerValue,
@@ -110,12 +111,9 @@ export function SectionQuestionsPage({
           {section.prompt}
         </h2>
         {description ? (
-          <p
-            className="mt-3 text-base leading-relaxed"
-            style={{ color: "var(--theme-text-muted)" }}
-          >
-            {description}
-          </p>
+          <div className="mt-3 text-base leading-relaxed">
+            <MarkdownContent content={description} themed />
+          </div>
         ) : null}
       </header>
 
