@@ -635,8 +635,9 @@ export function FormBuilder({
           <div>
             <h2 className="text-lg font-semibold text-zinc-900">Questions</h2>
             <p className="text-sm text-zinc-500">
-              Group questions into titled sections. One question per screen, in
-              the order shown below.
+              Group questions into titled sections. Each section starts with a
+              title screen, then shows all of its questions on one scrollable
+              page.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -870,7 +871,7 @@ function SectionEditor({
             label="Description"
             htmlFor={`section-description-${section.key}`}
             error={optionsError}
-            hint="Optional text shown under the title on the section screen."
+            hint="Optional text shown on the section title screen and again above its questions."
           >
             <textarea
               id={`section-description-${section.key}`}

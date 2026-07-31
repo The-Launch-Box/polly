@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { NpsFlow } from "@/components/NpsFlow";
 import { validateContactInfoAnswer } from "@/lib/contact-info";
 import { getVisibleQuestionIds } from "@/lib/branching";
-import type { FormPayload, NpsAnswer } from "@/lib/types";
+import type { FormPayload, FormQuestion, NpsAnswer } from "@/lib/types";
 import {
   isHeatmapPoint,
   isNpsOptions,
@@ -15,7 +15,14 @@ import {
 } from "@/lib/types";
 import { ProgressBar } from "@/components/ProgressBar";
 import { QuestionStep } from "@/components/QuestionStep";
+import { SectionQuestionsPage } from "@/components/SectionQuestionsPage";
 import { isNonInputQuestionType } from "@/lib/question-types";
+import {
+  buildSurveyPages,
+  filterVisibleSurveyPages,
+  pageKey,
+  type SurveyPage,
+} from "@/lib/survey-pages";
 
 type FormPlayerProps = {
   form: FormPayload;
@@ -29,8 +36,8 @@ type SlidePhase = "idle" | "exit" | "enter";
 
 export function FormPlayer({ form }: FormPlayerProps) {
   const router = useRouter();
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [displayIndex, setDisplayIndex] = useState(0);
+  const [currentPageIndex, setCurrentPageIndex] = useState(0);
+  const [displayPageIndex, setDisplayPageIndex] = useState(0);
   const [slideDirection, setSlideDirection] = useState<SlideDirection>("forward");
   const [slidePhase, setSlidePhase] = useState<SlidePhase>("enter");
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
@@ -45,81 +52,85 @@ export function FormPlayer({ form }: FormPlayerProps) {
   const surveyStartedAt = useRef(Date.now());
   const questionStartedAt = useRef(Date.now());
   const durationsRef = useRef<Record<string, number>>({});
+  const activeDurationIdsRef = useRef<string[]>([]);
 
   const questions = form.questions;
-  const currentQuestion = questions[displayIndex];
-  const isNpsQuestion = currentQuestion?.type === "NPS";
-  const isTransitioning = slidePhase !== "idle";
+  const allPages = useMemo(() => buildSurveyPages(questions), [questions]);
 
-  // Questions reachable given the answers so far, as indices into `questions`.
-  // Branching means this set changes as the respondent answers, so navigation,
-  // progress, and validation all work off the visible subset rather than the
-  // raw question list.
-  const visibleIndexList = useMemo(() => {
+  const visiblePages = useMemo(() => {
     const visibleIds = getVisibleQuestionIds(questions, answers);
-    return questions.reduce<number[]>((acc, question, index) => {
-      if (visibleIds.has(question.id)) {
-        acc.push(index);
-      }
-      return acc;
-    }, []);
-  }, [questions, answers]);
+    return filterVisibleSurveyPages(allPages, questions, visibleIds);
+  }, [allPages, questions, answers]);
 
-  const visibleCount = visibleIndexList.length;
-  const currentVisiblePos = visibleIndexList.indexOf(currentIndex);
-  const isLast =
-    currentVisiblePos !== -1 && currentVisiblePos === visibleCount - 1;
-  const progress =
-    visibleCount > 0 ? ((currentVisiblePos + 1) / visibleCount) * 100 : 0;
-  const visibleErrorFlags = visibleIndexList.map(
-    (index) => questionErrors[questions[index].id] ?? false,
+  const visibleCount = visiblePages.length;
+  const safeCurrentPageIndex = Math.min(
+    currentPageIndex,
+    Math.max(visibleCount - 1, 0),
   );
-  const isNonInputStep = currentQuestion
-    ? isNonInputQuestionType(currentQuestion.type)
-    : false;
-  const answerableVisibleCount = visibleIndexList.filter(
-    (index) => !isNonInputQuestionType(questions[index].type),
-  ).length;
-  const answerableVisiblePos = visibleIndexList
-    .slice(0, Math.max(currentVisiblePos, 0) + 1)
-    .filter((index) => !isNonInputQuestionType(questions[index].type)).length;
+  const safeDisplayPageIndex = Math.min(
+    displayPageIndex,
+    Math.max(visibleCount - 1, 0),
+  );
+  const currentPage = visiblePages[safeCurrentPageIndex] ?? null;
+  const displayPage = visiblePages[safeDisplayPageIndex] ?? null;
+  const isTransitioning = slidePhase !== "idle";
+  const isLast =
+    safeCurrentPageIndex !== -1 &&
+    visibleCount > 0 &&
+    safeCurrentPageIndex === visibleCount - 1;
+  const progress =
+    visibleCount > 0 ? ((safeCurrentPageIndex + 1) / visibleCount) * 100 : 0;
 
-  function visibleListFor(nextAnswers: Record<string, unknown>): number[] {
-    const visibleIds = getVisibleQuestionIds(questions, nextAnswers);
-    return questions.reduce<number[]>((acc, question, index) => {
-      if (visibleIds.has(question.id)) {
-        acc.push(index);
+  const displayQuestions = useMemo(
+    () => (displayPage ? questionsOnPage(displayPage, questions) : []),
+    [displayPage, questions],
+  );
+
+  const isNpsOnlyPage =
+    displayPage?.kind === "single" &&
+    questions[displayPage.questionIndex]?.type === "NPS";
+
+  const isNonInputStep =
+    displayPage?.kind === "section-title" ||
+    (displayPage?.kind === "single" &&
+      isNonInputQuestionType(questions[displayPage.questionIndex].type));
+
+  const answerableQuestions = useMemo(
+    () =>
+      visiblePages.flatMap((page) =>
+        questionsOnPage(page, questions).filter(
+          (question) => !isNonInputQuestionType(question.type),
+        ),
+      ),
+    [visiblePages, questions],
+  );
+
+  const answerableVisibleCount = answerableQuestions.length;
+  const answerableVisiblePos = (() => {
+    if (!currentPage) return 0;
+    const idsOnCurrent = new Set(
+      questionsOnPage(currentPage, questions).map((question) => question.id),
+    );
+    let count = 0;
+    for (const question of answerableQuestions) {
+      count += 1;
+      if (idsOnCurrent.has(question.id)) {
+        break;
       }
-      return acc;
-    }, []);
-  }
-
-  function nextVisibleIndex(
-    fromIndex: number,
-    list: number[] = visibleIndexList,
-  ): number | null {
-    const pos = list.indexOf(fromIndex);
-    if (pos === -1) {
-      return list.find((index) => index > fromIndex) ?? null;
     }
-    return pos + 1 < list.length ? list[pos + 1] : null;
-  }
+    return count;
+  })();
 
-  function prevVisibleIndex(fromIndex: number): number | null {
-    const pos = visibleIndexList.indexOf(fromIndex);
-    if (pos === -1) {
-      const earlier = visibleIndexList.filter((index) => index < fromIndex);
-      return earlier.length > 0 ? earlier[earlier.length - 1] : null;
-    }
-    return pos - 1 >= 0 ? visibleIndexList[pos - 1] : null;
-  }
+  const visibleErrorFlags = visiblePages.map((page) =>
+    questionsOnPage(page, questions).some(
+      (question) => questionErrors[question.id] ?? false,
+    ),
+  );
 
-  const currentValue = useMemo(() => {
-    if (!currentQuestion) {
-      return undefined;
-    }
-    return answers[currentQuestion.id];
-  }, [answers, currentQuestion]);
+  function visiblePagesFor(nextAnswers: Record<string, unknown>): SurveyPage[] {
+    const visibleIds = getVisibleQuestionIds(questions, nextAnswers);
+    return filterVisibleSurveyPages(allPages, questions, visibleIds);
+  }
 
   useEffect(() => {
     transitionTimer.current = setTimeout(() => {
@@ -134,13 +145,16 @@ export function FormPlayer({ form }: FormPlayerProps) {
 
   useEffect(() => {
     questionStartedAt.current = Date.now();
-  }, [displayIndex]);
+    activeDurationIdsRef.current = displayQuestions.map((question) => question.id);
+  }, [displayPageIndex, displayQuestions]);
 
-  function finalizeQuestionDuration(questionId: string) {
+  function finalizeActiveDurations() {
     const elapsed = Date.now() - questionStartedAt.current;
-    if (elapsed > 0) {
+    if (elapsed <= 0) return;
+    const share = Math.floor(elapsed / Math.max(activeDurationIdsRef.current.length, 1));
+    for (const questionId of activeDurationIdsRef.current) {
       durationsRef.current[questionId] =
-        (durationsRef.current[questionId] ?? 0) + elapsed;
+        (durationsRef.current[questionId] ?? 0) + share;
     }
   }
 
@@ -151,25 +165,22 @@ export function FormPlayer({ form }: FormPlayerProps) {
     }
   }
 
-  function startSlide(nextIndex: number) {
-    if (nextIndex === currentIndex || isTransitioning || isSubmitting) {
+  function startSlide(nextPageIndex: number, fromPageIndex = currentPageIndex) {
+    if (nextPageIndex === fromPageIndex || isTransitioning || isSubmitting) {
       return;
     }
 
-    const leaving = questions[currentIndex];
-    if (leaving) {
-      finalizeQuestionDuration(leaving.id);
-    }
-
+    finalizeActiveDurations();
     clearTransitionTimer();
-    setSlideDirection(nextIndex > currentIndex ? "forward" : "back");
+    setSlideDirection(nextPageIndex > fromPageIndex ? "forward" : "back");
     setSlidePhase("exit");
 
     transitionTimer.current = setTimeout(() => {
-      setDisplayIndex(nextIndex);
-      setCurrentIndex(nextIndex);
+      setDisplayPageIndex(nextPageIndex);
+      setCurrentPageIndex(nextPageIndex);
       setSlidePhase("enter");
       setError(null);
+      window.scrollTo({ top: 0, behavior: "auto" });
 
       transitionTimer.current = setTimeout(() => {
         setSlidePhase("idle");
@@ -178,31 +189,38 @@ export function FormPlayer({ form }: FormPlayerProps) {
     }, EXIT_MS);
   }
 
-  function setCurrentAnswer(value: unknown) {
-    if (!currentQuestion) {
-      return;
-    }
-    setAnswers((prev) => ({ ...prev, [currentQuestion.id]: value }));
+  function setAnswer(questionId: string, value: unknown) {
+    setAnswers((prev) => ({ ...prev, [questionId]: value }));
     setError(null);
     setQuestionErrors((prev) => {
-      if (!prev[currentQuestion.id]) return prev;
+      if (!prev[questionId]) return prev;
       const next = { ...prev };
-      delete next[currentQuestion.id];
+      delete next[questionId];
       return next;
     });
   }
 
+  function setCurrentAnswer(value: unknown) {
+    if (!currentPage || currentPage.kind !== "single") {
+      return;
+    }
+    setAnswer(questions[currentPage.questionIndex].id, value);
+  }
+
   function validateQuestion(questionIndex: number): string | null {
     const question = questions[questionIndex];
-    if (
-      !question ||
-      question.type === "NPS" ||
-      isNonInputQuestionType(question.type)
-    ) {
+    if (!question || isNonInputQuestionType(question.type)) {
       return null;
     }
 
     const value = answers[question.id];
+
+    if (question.type === "NPS") {
+      if (question.required && (value === undefined || value === null)) {
+        return "Please complete this question before continuing.";
+      }
+      return null;
+    }
 
     if (question.type === "CONTACT_INFO") {
       return validateContactInfoAnswer(value, question.required, form.anonymous);
@@ -244,31 +262,56 @@ export function FormPlayer({ form }: FormPlayerProps) {
       return "Please upload a file before continuing.";
     }
     if (question.type === "HEATMAP" && !isHeatmapPoint(value)) {
-      if (!Array.isArray(value) || value.length === 0 || !value.every(isHeatmapPoint)) {
+      if (
+        !Array.isArray(value) ||
+        value.length === 0 ||
+        !value.every(isHeatmapPoint)
+      ) {
         return "Please click on the image before continuing.";
       }
     }
-    if (question.type === "MULTIPLE_CHOICE" && Array.isArray(value) && value.length === 0) {
+    if (
+      question.type === "MULTIPLE_CHOICE" &&
+      Array.isArray(value) &&
+      value.length === 0
+    ) {
       return "Please select at least one option before continuing.";
     }
     return null;
   }
 
-  function validateCurrent(): string | null {
-    return validateQuestion(currentIndex);
+  function validatePage(page: SurveyPage): {
+    error: string | null;
+    errorFlags: Record<string, boolean>;
+  } {
+    const errorFlags: Record<string, boolean> = {};
+    let firstError: string | null = null;
+
+    for (const index of questionIndicesOnPage(page)) {
+      const message = validateQuestion(index);
+      if (message) {
+        errorFlags[questions[index].id] = true;
+        if (!firstError) firstError = message;
+      }
+    }
+
+    return { error: firstError, errorFlags };
+  }
+
+  function scrollToFirstError(flags: Record<string, boolean>) {
+    const firstId = Object.keys(flags)[0];
+    if (!firstId) return;
+    const el = document.getElementById(`survey-q-${firstId}`);
+    if (!el) return;
+    const top = el.getBoundingClientRect().top + window.scrollY - 96;
+    window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
   }
 
   async function submitSurvey(
     nextAnswers: Record<string, unknown>,
   ): Promise<{ ok: true } | { ok: false; error: string }> {
-    const lastQuestion = questions[currentIndex];
-    if (lastQuestion) {
-      finalizeQuestionDuration(lastQuestion.id);
-    }
+    finalizeActiveDurations();
 
-    // Only submit answers for questions that remain visible under the final set
-    // of answers; abandoned branches are dropped client-side (and the server
-    // re-derives visibility as an authoritative check).
     const visibleIds = getVisibleQuestionIds(questions, nextAnswers);
     const visibleAnswers = Object.entries(nextAnswers).filter(([questionId]) =>
       visibleIds.has(questionId),
@@ -277,7 +320,9 @@ export function FormPlayer({ form }: FormPlayerProps) {
     const answerPayload = visibleAnswers.map(([questionId, value]) => ({
       questionId,
       value: value instanceof File ? null : value,
-      ...(form.anonymous ? {} : { durationMs: durationsRef.current[questionId] }),
+      ...(form.anonymous
+        ? {}
+        : { durationMs: durationsRef.current[questionId] }),
     }));
     const timingPayload = form.anonymous
       ? {}
@@ -332,19 +377,57 @@ export function FormPlayer({ form }: FormPlayerProps) {
     return { ok: true };
   }
 
-  async function handleNpsPromoterSubmit(
-    answer: NpsAnswer,
-  ): Promise<{ redirectUrl?: string }> {
-    if (!currentQuestion) {
-      return {};
+  function advanceAfterNps(
+    nextAnswers: Record<string, unknown>,
+    npsQuestionId: string,
+  ): "slid" | "submit" | "stayed" {
+    const pages = visiblePagesFor(nextAnswers);
+    const pagePos = pages.findIndex((page) =>
+      questionsOnPage(page, questions).some(
+        (question) => question.id === npsQuestionId,
+      ),
+    );
+    if (pagePos === -1) {
+      return "submit";
     }
 
-    const nextAnswers = { ...answers, [currentQuestion.id]: answer };
+    const page = pages[pagePos];
+    if (page.kind === "section-body") {
+      const sectionQuestions = questionsOnPage(page, questions);
+      const npsPos = sectionQuestions.findIndex(
+        (question) => question.id === npsQuestionId,
+      );
+      if (npsPos !== -1 && npsPos < sectionQuestions.length - 1) {
+        const nextId = sectionQuestions[npsPos + 1].id;
+        requestAnimationFrame(() => {
+          const el = document.getElementById(`survey-q-${nextId}`);
+          if (!el) return;
+          const top = el.getBoundingClientRect().top + window.scrollY - 96;
+          window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+        });
+        return "stayed";
+      }
+    }
+
+    if (pagePos + 1 < pages.length) {
+      // `pages` is derived from the new answers (branching may have shifted
+      // indices), so animate from this page's position in that list.
+      startSlide(pagePos + 1, pagePos);
+      return "slid";
+    }
+
+    return "submit";
+  }
+
+  async function handleNpsPromoterSubmit(
+    answer: NpsAnswer,
+    npsQuestion: FormQuestion,
+  ): Promise<{ redirectUrl?: string }> {
+    const nextAnswers = { ...answers, [npsQuestion.id]: answer };
     setAnswers(nextAnswers);
 
-    const next = nextVisibleIndex(currentIndex, visibleListFor(nextAnswers));
-    if (next !== null) {
-      startSlide(next);
+    const advance = advanceAfterNps(nextAnswers, npsQuestion.id);
+    if (advance === "slid" || advance === "stayed") {
       return {};
     }
 
@@ -358,8 +441,8 @@ export function FormPlayer({ form }: FormPlayerProps) {
         return {};
       }
 
-      const options = isNpsOptions(currentQuestion.options)
-        ? currentQuestion.options
+      const options = isNpsOptions(npsQuestion.options)
+        ? npsQuestion.options
         : null;
       const redirectUrl = options?.promoterRedirectUrl?.trim();
       if (redirectUrl) {
@@ -377,17 +460,15 @@ export function FormPlayer({ form }: FormPlayerProps) {
     }
   }
 
-  async function handleNpsDetractorComplete(answer: NpsAnswer): Promise<boolean> {
-    if (!currentQuestion) {
-      return false;
-    }
-
-    const nextAnswers = { ...answers, [currentQuestion.id]: answer };
+  async function handleNpsDetractorComplete(
+    answer: NpsAnswer,
+    npsQuestion: FormQuestion,
+  ): Promise<boolean> {
+    const nextAnswers = { ...answers, [npsQuestion.id]: answer };
     setAnswers(nextAnswers);
 
-    const next = nextVisibleIndex(currentIndex, visibleListFor(nextAnswers));
-    if (next !== null) {
-      startSlide(next);
+    const advance = advanceAfterNps(nextAnswers, npsQuestion.id);
+    if (advance === "slid" || advance === "stayed") {
       return true;
     }
 
@@ -411,40 +492,37 @@ export function FormPlayer({ form }: FormPlayerProps) {
   }
 
   async function handleNext() {
+    if (!currentPage) return;
+
     if (!isLast) {
-      const validationError = validateCurrent();
+      const { error: validationError, errorFlags } = validatePage(currentPage);
       if (validationError) {
         setError(validationError);
-        setQuestionErrors((prev) => ({
-          ...prev,
-          [currentQuestion.id]: true,
-        }));
+        setQuestionErrors((prev) => ({ ...prev, ...errorFlags }));
+        if (currentPage.kind === "section-body") {
+          scrollToFirstError(errorFlags);
+        }
         return;
       }
-      const next = nextVisibleIndex(currentIndex);
-      if (next !== null) {
-        startSlide(next);
-      }
+      startSlide(safeCurrentPageIndex + 1);
       return;
     }
 
-    // On the last question validate every visible question at once — catches
-    // required questions the user skipped by dragging the progress bar. The
-    // current question is included so its specific message is shown when it's
-    // the blocker.
     const errorFlags: Record<string, boolean> = {};
-    for (const index of visibleIndexList) {
-      if (validateQuestion(index) !== null) {
-        errorFlags[questions[index].id] = true;
-      }
+    for (const page of visiblePages) {
+      const result = validatePage(page);
+      Object.assign(errorFlags, result.errorFlags);
     }
     if (Object.keys(errorFlags).length > 0) {
       setQuestionErrors(errorFlags);
+      const currentResult = validatePage(currentPage);
       setError(
-        errorFlags[currentQuestion.id]
-          ? (validateCurrent() ?? "Please answer this question before continuing.")
-          : "Please go back and answer all required questions before submitting.",
+        currentResult.error ??
+          "Please go back and answer all required questions before submitting.",
       );
+      if (currentPage.kind === "section-body") {
+        scrollToFirstError(errorFlags);
+      }
       return;
     }
 
@@ -467,14 +545,13 @@ export function FormPlayer({ form }: FormPlayerProps) {
   }
 
   function handleBack() {
-    const prev = prevVisibleIndex(currentIndex);
-    if (prev === null) {
+    if (safeCurrentPageIndex <= 0) {
       return;
     }
-    startSlide(prev);
+    startSlide(safeCurrentPageIndex - 1);
   }
 
-  if (!currentQuestion) {
+  if (!displayPage || !currentPage) {
     return null;
   }
 
@@ -489,6 +566,46 @@ export function FormPlayer({ form }: FormPlayerProps) {
           : "survey-step-enter-back"
         : "";
 
+  const headerLabel = (() => {
+    if (displayPage.kind === "section-title") {
+      return (
+        questions[displayPage.sectionIndex].prompt.trim() || "Section"
+      );
+    }
+    if (displayPage.kind === "section-body") {
+      return (
+        questions[displayPage.sectionIndex].prompt.trim() || "Section"
+      );
+    }
+    if (isNonInputStep) {
+      const question = questions[displayPage.questionIndex];
+      return question.prompt.trim() || "Title";
+    }
+    if (answerableVisibleCount > 0) {
+      return `Question ${answerableVisiblePos} of ${answerableVisibleCount}`;
+    }
+    return null;
+  })();
+
+  const singleQuestion =
+    displayPage.kind === "single"
+      ? questions[displayPage.questionIndex]
+      : null;
+  const sectionQuestion =
+    displayPage.kind === "section-title" || displayPage.kind === "section-body"
+      ? questions[displayPage.sectionIndex]
+      : null;
+  const sectionBodyQuestions =
+    displayPage.kind === "section-body" ? displayQuestions : [];
+
+  const sectionHasIncompleteNps =
+    displayPage.kind === "section-body" &&
+    sectionBodyQuestions.some(
+      (question) =>
+        question.type === "NPS" &&
+        (answers[question.id] === undefined || answers[question.id] === null),
+    );
+
   return (
     <div className="mx-auto flex min-h-[70vh] w-full max-w-2xl flex-col px-4 py-10">
       <div className="mb-8">
@@ -496,21 +613,15 @@ export function FormPlayer({ form }: FormPlayerProps) {
           className="text-sm font-medium transition-opacity duration-300"
           style={{ color: "var(--theme-text-muted)" }}
         >
-          {isNonInputStep
-            ? currentQuestion.prompt.trim() ||
-              (currentQuestion.type === "SECTION" ? "Section" : "Title")
-            : answerableVisibleCount > 0
-              ? `Question ${answerableVisiblePos} of ${answerableVisibleCount}`
-              : null}
+          {headerLabel}
         </p>
         <ProgressBar
           value={progress}
           total={visibleCount}
-          currentIndex={currentVisiblePos}
+          currentIndex={safeCurrentPageIndex}
           onSeek={(pos) => {
-            const target = visibleIndexList[pos];
-            if (target !== undefined) {
-              startSlide(target);
+            if (pos >= 0 && pos < visibleCount) {
+              startSlide(pos);
             }
           }}
           disabled={isTransitioning || isSubmitting}
@@ -518,29 +629,76 @@ export function FormPlayer({ form }: FormPlayerProps) {
         />
       </div>
 
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <div key={displayIndex} className={slideClass}>
-          {isNpsQuestion ? (
+      <div className="flex flex-1 flex-col">
+        <div key={pageKey(displayPage)} className={slideClass}>
+          {isNpsOnlyPage && singleQuestion ? (
             <NpsFlow
-              question={currentQuestion}
+              question={singleQuestion}
               anonymous={form.anonymous}
               onBack={handleBack}
-              canGoBack={currentVisiblePos > 0}
-              onPromoterSubmit={handleNpsPromoterSubmit}
-              onDetractorComplete={handleNpsDetractorComplete}
+              canGoBack={safeCurrentPageIndex > 0}
+              onPromoterSubmit={(answer) =>
+                handleNpsPromoterSubmit(answer, singleQuestion)
+              }
+              onDetractorComplete={(answer) =>
+                handleNpsDetractorComplete(answer, singleQuestion)
+              }
               isSubmitting={isSubmitting}
               score={npsScore}
               followUpText={npsFollowUpText}
               onScoreChange={setNpsScore}
               onFollowUpTextChange={setNpsFollowUpText}
             />
-          ) : (
+          ) : displayPage.kind === "section-body" && sectionQuestion ? (
+            <SectionQuestionsPage
+              section={sectionQuestion}
+              questions={sectionBodyQuestions}
+              answers={answers}
+              onAnswer={setAnswer}
+              questionErrors={questionErrors}
+              anonymous={form.anonymous}
+              npsQuestionId={
+                sectionBodyQuestions.find((question) => question.type === "NPS")
+                  ?.id ?? null
+              }
+              npsScore={npsScore}
+              npsFollowUpText={npsFollowUpText}
+              onNpsScoreChange={setNpsScore}
+              onNpsFollowUpTextChange={setNpsFollowUpText}
+              onNpsPromoterSubmit={(answer) => {
+                const npsQuestion = sectionBodyQuestions.find(
+                  (question) => question.type === "NPS",
+                );
+                if (!npsQuestion) return Promise.resolve({});
+                return handleNpsPromoterSubmit(answer, npsQuestion);
+              }}
+              onNpsDetractorComplete={(answer) => {
+                const npsQuestion = sectionBodyQuestions.find(
+                  (question) => question.type === "NPS",
+                );
+                if (!npsQuestion) return Promise.resolve(false);
+                return handleNpsDetractorComplete(answer, npsQuestion);
+              }}
+              onNpsBack={handleBack}
+              canGoBack={safeCurrentPageIndex > 0}
+              isSubmitting={isSubmitting}
+            />
+          ) : singleQuestion ||
+            (displayPage.kind === "section-title" && sectionQuestion) ? (
             <QuestionStep
-              question={currentQuestion}
-              value={currentValue}
+              question={
+                displayPage.kind === "section-title"
+                  ? sectionQuestion!
+                  : singleQuestion!
+              }
+              value={
+                displayPage.kind === "single"
+                  ? answers[singleQuestion!.id]
+                  : undefined
+              }
               onChange={setCurrentAnswer}
             />
-          )}
+          ) : null}
         </div>
 
         {error && (
@@ -549,13 +707,13 @@ export function FormPlayer({ form }: FormPlayerProps) {
           </p>
         )}
 
-        {!isNpsQuestion && (
-          <div className="mt-auto flex items-center justify-between gap-4 pt-10">
+        {!isNpsOnlyPage && !sectionHasIncompleteNps && (
+          <div className="sticky bottom-0 mt-auto flex items-center justify-between gap-4 bg-[var(--theme-background,var(--background))] pt-10 pb-2">
             <button
               type="button"
               onClick={handleBack}
               disabled={
-                currentVisiblePos <= 0 || isSubmitting || isTransitioning
+                safeCurrentPageIndex <= 0 || isSubmitting || isTransitioning
               }
               className="rounded-lg px-4 py-2 text-sm font-medium transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
               style={{ color: "var(--theme-text-muted)" }}
@@ -572,11 +730,34 @@ export function FormPlayer({ form }: FormPlayerProps) {
                 color: "var(--theme-primary-foreground)",
               }}
             >
-              {isSubmitting ? "Submitting..." : isLast ? "Submit" : isNonInputStep ? "Continue" : "Next"}
+              {isSubmitting
+                ? "Submitting..."
+                : isLast
+                  ? "Submit"
+                  : isNonInputStep
+                    ? "Continue"
+                    : "Next"}
             </button>
           </div>
         )}
       </div>
     </div>
   );
+}
+
+function questionIndicesOnPage(page: SurveyPage): number[] {
+  if (page.kind === "single") {
+    return [page.questionIndex];
+  }
+  if (page.kind === "section-title") {
+    return [page.sectionIndex];
+  }
+  return page.questionIndices;
+}
+
+function questionsOnPage(
+  page: SurveyPage,
+  questions: FormQuestion[],
+): FormQuestion[] {
+  return questionIndicesOnPage(page).map((index) => questions[index]);
 }

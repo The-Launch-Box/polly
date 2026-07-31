@@ -36,9 +36,16 @@ type QuestionStepProps = {
   question: FormQuestion;
   value: unknown;
   onChange: (value: unknown) => void;
+  /** Compact stacked layout for multi-question section pages. */
+  layout?: "page" | "stacked";
 };
 
-export function QuestionStep({ question, value, onChange }: QuestionStepProps) {
+export function QuestionStep({
+  question,
+  value,
+  onChange,
+  layout = "page",
+}: QuestionStepProps) {
   if (isSectionType(question.type)) {
     const description =
       question.options &&
@@ -117,10 +124,16 @@ export function QuestionStep({ question, value, onChange }: QuestionStepProps) {
     );
   }
 
+  const stacked = layout === "stacked";
+
   return (
     <div>
       <h2
-        className="text-2xl font-semibold leading-snug sm:text-3xl"
+        className={
+          stacked
+            ? "text-xl font-semibold leading-snug sm:text-2xl"
+            : "text-2xl font-semibold leading-snug sm:text-3xl"
+        }
         style={{ color: "var(--theme-text)" }}
       >
         {question.prompt}
@@ -134,7 +147,7 @@ export function QuestionStep({ question, value, onChange }: QuestionStepProps) {
         </p>
       )}
 
-      <div className="mt-8">
+      <div className={stacked ? "mt-5" : "mt-8"}>
         {question.type === "SCALE" && isScaleOptions(question.options) && (
           <ScaleInput
             options={question.options}
