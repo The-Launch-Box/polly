@@ -23,6 +23,7 @@ export default async function SurveyInsightsPage({ params }: PageProps) {
   const { slug } = await params;
 
   let form;
+  let canDeleteResponses = false;
   try {
     const actor = await requireActor();
     const authzForm = await loadFormAuthzContext(actor, slug);
@@ -30,6 +31,7 @@ export default async function SurveyInsightsPage({ params }: PageProps) {
     if (!can(actor, "form:view_responses", authzForm, groupIds)) {
       notFound();
     }
+    canDeleteResponses = can(actor, "form:delete_responses", authzForm, groupIds);
 
     form = await prisma.form.findFirst({
       where: { slug, organizationId: actor.organizationId },
@@ -144,7 +146,11 @@ export default async function SurveyInsightsPage({ params }: PageProps) {
             to start collecting data.
           </div>
         ) : (
-          <SurveyInsightsDashboard insights={serializedInsights} />
+          <SurveyInsightsDashboard
+            insights={serializedInsights}
+            formSlug={form.slug}
+            canDeleteResponses={canDeleteResponses}
+          />
         )}
       </div>
     </>

@@ -6,18 +6,31 @@ import {
   emptyContactInfoAnswer,
   isContactInfoAnswer,
 } from "@/lib/contact-info";
-import type { ContactInfoAnswer, ContactInfoOptions, FormQuestion, HeatmapPoint, SectionOptions } from "@/lib/types";
+import type {
+  ContactInfoAnswer,
+  ContactInfoOptions,
+  FormQuestion,
+  HeatmapPoint,
+  PointAllocationAnswer,
+  PointAllocationOptions,
+  SectionOptions,
+  TitleCardOptions,
+} from "@/lib/types";
 import {
+  emptyPointAllocationAnswer,
   isAttachmentAnswer,
   isAttachmentOptions,
   isChoiceListOptions,
   isHeatmapOptions,
   isHeatmapPoint,
+  isPointAllocationAnswer,
+  isPointAllocationOptions,
   isScaleOptions,
   isShortTextOptions,
   isSliderOptions,
+  pointAllocationTotal,
 } from "@/lib/types";
-import { isSectionType } from "@/lib/question-types";
+import { isSectionType, isTitleCardType } from "@/lib/question-types";
 
 type QuestionStepProps = {
   question: FormQuestion;
@@ -55,6 +68,50 @@ export function QuestionStep({ question, value, onChange }: QuestionStepProps) {
           >
             {description.trim()}
           </p>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (isTitleCardType(question.type)) {
+    const options = (question.options ?? {}) as TitleCardOptions;
+    const description = options.description?.trim() ?? "";
+    const links = options.links ?? [];
+
+    return (
+      <div className="py-4 text-center">
+        <h2
+          className="text-3xl font-semibold leading-snug sm:text-4xl"
+          style={{ color: "var(--theme-text)" }}
+        >
+          {question.prompt}
+        </h2>
+        {description ? (
+          <p
+            className="mx-auto mt-4 max-w-lg text-base leading-relaxed sm:text-lg"
+            style={{ color: "var(--theme-text-muted)" }}
+          >
+            {description}
+          </p>
+        ) : null}
+        {links.length > 0 ? (
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            {links.map((link) => (
+              <a
+                key={`${link.label}-${link.url}`}
+                href={link.url}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-lg px-4 py-2.5 text-sm font-medium transition hover:opacity-90"
+                style={{
+                  backgroundColor: "var(--theme-primary)",
+                  color: "var(--theme-primary-foreground)",
+                }}
+              >
+                {link.label}
+              </a>
+            ))}
+          </div>
         ) : null}
       </div>
     );
@@ -143,7 +200,128 @@ export function QuestionStep({ question, value, onChange }: QuestionStepProps) {
             onChange={onChange}
           />
         )}
+
+        {question.type === "POINT_ALLOCATION" &&
+          isPointAllocationOptions(question.options) && (
+            <PointAllocationInput
+              options={question.options}
+              value={
+                isPointAllocationAnswer(value)
+                  ? value
+                  : emptyPointAllocationAnswer(question.options)
+              }
+              onChange={onChange}
+            />
+          )}
       </div>
+    </div>
+  );
+}
+
+function PointAllocationInput({
+  options,
+  value,
+  onChange,
+}: {
+  options: PointAllocationOptions;
+  value: PointAllocationAnswer;
+  onChange: (value: PointAllocationAnswer) => void;
+}) {
+  const allocated = pointAllocationTotal(value);
+  const remaining = options.totalPoints - allocated;
+
+  function setPoints(outcomeValue: string, nextPoints: number) {
+    const clamped = Math.max(0, Math.min(options.totalPoints, nextPoints));
+    const withoutCurrent = allocated - (value[outcomeValue] ?? 0);
+    const maxAllowed = options.totalPoints - withoutCurrent;
+    const points = Math.min(clamped, maxAllowed);
+
+    onChange({
+      ...value,
+      [outcomeValue]: points,
+    });
+  }
+
+  return (
+    <div className="space-y-6">
+      <p className="text-sm leading-relaxed sm:text-base" style={{ color: "var(--theme-text-muted)" }}>
+        Distribute {options.totalPoints} point{options.totalPoints === 1 ? "" : "s"}{" "}
+        across the outcomes that matter most. More points = higher priority.
+      </p>
+
+      <div
+        className="flex items-baseline justify-between gap-4 rounded-xl border px-4 py-3"
+        style={{
+          borderColor: "var(--theme-border, #d4d4d8)",
+          backgroundColor: "var(--theme-surface, transparent)",
+        }}
+      >
+        <span className="text-sm font-medium" style={{ color: "var(--theme-text-muted)" }}>
+          Points remaining
+        </span>
+        <span
+          className="text-2xl font-semibold tabular-nums"
+          style={{
+            color: remaining === 0 ? "var(--theme-primary)" : "var(--theme-text)",
+          }}
+        >
+          {remaining}
+        </span>
+      </div>
+
+      <ul className="space-y-3">
+        {options.outcomes.map((outcome) => {
+          const points = value[outcome.value] ?? 0;
+          return (
+            <li
+              key={outcome.value}
+              className="flex items-center justify-between gap-4 rounded-xl border px-4 py-3"
+              style={{ borderColor: "var(--theme-border, #d4d4d8)" }}
+            >
+              <span
+                className="min-w-0 flex-1 text-sm font-medium sm:text-base"
+                style={{ color: "var(--theme-text)" }}
+              >
+                {outcome.label}
+              </span>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPoints(outcome.value, points - 1)}
+                  disabled={points <= 0}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg border text-lg leading-none transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+                  style={{
+                    borderColor: "var(--theme-border, #d4d4d8)",
+                    color: "var(--theme-text)",
+                  }}
+                  aria-label={`Decrease points for ${outcome.label}`}
+                >
+                  −
+                </button>
+                <span
+                  className="w-8 text-center text-base font-semibold tabular-nums"
+                  style={{ color: "var(--theme-text)" }}
+                >
+                  {points}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPoints(outcome.value, points + 1)}
+                  disabled={remaining <= 0}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg border text-lg leading-none transition hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-40"
+                  style={{
+                    borderColor: "var(--theme-border, #d4d4d8)",
+                    color: "var(--theme-text)",
+                  }}
+                  aria-label={`Increase points for ${outcome.label}`}
+                >
+                  +
+                </button>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

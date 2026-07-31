@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { DeleteSubmissionButton } from "@/components/admin/DeleteSubmissionButton";
 import { can } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { formatDuration } from "@/lib/survey-insights";
@@ -11,6 +12,8 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminSubmissionsPage() {
   let submissions;
+  const deletableFormIds = new Set<string>();
+
   try {
     const actor = await requireActor();
     const accessible = await listAccessibleForms(actor);
@@ -18,19 +21,16 @@ export default async function AdminSubmissionsPage() {
     const groupIds = await groupIdsForUser(actor);
 
     for (const form of accessible) {
-      if (
-        can(
-          actor,
-          "form:view_responses",
-          {
-            id: form.id,
-            ownerUserId: form.ownerUserId,
-            access: form.access,
-          },
-          groupIds,
-        )
-      ) {
+      const authzForm = {
+        id: form.id,
+        ownerUserId: form.ownerUserId,
+        access: form.access,
+      };
+      if (can(actor, "form:view_responses", authzForm, groupIds)) {
         readableIds.add(form.id);
+      }
+      if (can(actor, "form:delete_responses", authzForm, groupIds)) {
+        deletableFormIds.add(form.id);
       }
     }
 
@@ -83,7 +83,7 @@ export default async function AdminSubmissionsPage() {
               key={submission.id}
               className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm"
             >
-                <div className="flex flex-wrap items-start justify-between gap-2 border-b border-zinc-100 pb-3">
+              <div className="flex flex-wrap items-start justify-between gap-2 border-b border-zinc-100 pb-3">
                 <div>
                   <h2 className="font-medium text-zinc-900">
                     <Link
@@ -97,21 +97,27 @@ export default async function AdminSubmissionsPage() {
                     {submission.form.slug} · {submission.id}
                   </p>
                 </div>
-                <div className="text-right text-xs text-zinc-500">
+                <div className="flex flex-col items-end gap-2 text-right text-xs text-zinc-500">
                   <time dateTime={submission.submittedAt.toISOString()}>
                     {submission.submittedAt.toLocaleString()}
                   </time>
                   {submission.totalDurationMs != null && (
-                    <p className="mt-1">
-                      Total time: {formatDuration(submission.totalDurationMs)}
-                    </p>
+                    <p>Total time: {formatDuration(submission.totalDurationMs)}</p>
                   )}
+                  {deletableFormIds.has(submission.formId) ? (
+                    <DeleteSubmissionButton
+                      formSlug={submission.form.slug}
+                      submissionId={submission.id}
+                    />
+                  ) : null}
                 </div>
               </div>
 
               <dl className="mt-4 space-y-3">
                 {submission.answers.map((answer) => {
-                  const attachment = isAttachmentAnswer(answer.value) ? answer.value : null;
+                  const attachment = isAttachmentAnswer(answer.value)
+                    ? answer.value
+                    : null;
                   return (
                     <div key={answer.id}>
                       <dt className="text-xs font-medium uppercase tracking-wide text-zinc-500">

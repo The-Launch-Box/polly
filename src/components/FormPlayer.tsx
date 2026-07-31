@@ -6,9 +6,16 @@ import { NpsFlow } from "@/components/NpsFlow";
 import { validateContactInfoAnswer } from "@/lib/contact-info";
 import { getVisibleQuestionIds } from "@/lib/branching";
 import type { FormPayload, NpsAnswer } from "@/lib/types";
-import { isHeatmapPoint, isNpsOptions } from "@/lib/types";
+import {
+  isHeatmapPoint,
+  isNpsOptions,
+  isPointAllocationAnswer,
+  isPointAllocationOptions,
+  pointAllocationTotal,
+} from "@/lib/types";
 import { ProgressBar } from "@/components/ProgressBar";
 import { QuestionStep } from "@/components/QuestionStep";
+import { isNonInputQuestionType } from "@/lib/question-types";
 
 type FormPlayerProps = {
   form: FormPayload;
@@ -67,13 +74,15 @@ export function FormPlayer({ form }: FormPlayerProps) {
   const visibleErrorFlags = visibleIndexList.map(
     (index) => questionErrors[questions[index].id] ?? false,
   );
-  const isSectionStep = currentQuestion?.type === "SECTION";
+  const isNonInputStep = currentQuestion
+    ? isNonInputQuestionType(currentQuestion.type)
+    : false;
   const answerableVisibleCount = visibleIndexList.filter(
-    (index) => questions[index].type !== "SECTION",
+    (index) => !isNonInputQuestionType(questions[index].type),
   ).length;
   const answerableVisiblePos = visibleIndexList
     .slice(0, Math.max(currentVisiblePos, 0) + 1)
-    .filter((index) => questions[index].type !== "SECTION").length;
+    .filter((index) => !isNonInputQuestionType(questions[index].type)).length;
 
   function visibleListFor(nextAnswers: Record<string, unknown>): number[] {
     const visibleIds = getVisibleQuestionIds(questions, nextAnswers);
@@ -185,7 +194,11 @@ export function FormPlayer({ form }: FormPlayerProps) {
 
   function validateQuestion(questionIndex: number): string | null {
     const question = questions[questionIndex];
-    if (!question || question.type === "NPS" || question.type === "SECTION") {
+    if (
+      !question ||
+      question.type === "NPS" ||
+      isNonInputQuestionType(question.type)
+    ) {
       return null;
     }
 
@@ -193,6 +206,25 @@ export function FormPlayer({ form }: FormPlayerProps) {
 
     if (question.type === "CONTACT_INFO") {
       return validateContactInfoAnswer(value, question.required, form.anonymous);
+    }
+
+    if (question.type === "POINT_ALLOCATION") {
+      if (!isPointAllocationOptions(question.options)) {
+        return "This question is misconfigured.";
+      }
+      if (!isPointAllocationAnswer(value)) {
+        return question.required
+          ? "Please allocate your points before continuing."
+          : null;
+      }
+      const total = pointAllocationTotal(value);
+      if (!question.required && total === 0) {
+        return null;
+      }
+      if (total !== question.options.totalPoints) {
+        return `Please distribute all ${question.options.totalPoints} points before continuing.`;
+      }
+      return null;
     }
 
     if (!question.required) return null;
@@ -464,8 +496,9 @@ export function FormPlayer({ form }: FormPlayerProps) {
           className="text-sm font-medium transition-opacity duration-300"
           style={{ color: "var(--theme-text-muted)" }}
         >
-          {isSectionStep
-            ? currentQuestion.prompt.trim() || "Section"
+          {isNonInputStep
+            ? currentQuestion.prompt.trim() ||
+              (currentQuestion.type === "SECTION" ? "Section" : "Title")
             : answerableVisibleCount > 0
               ? `Question ${answerableVisiblePos} of ${answerableVisibleCount}`
               : null}
@@ -539,7 +572,7 @@ export function FormPlayer({ form }: FormPlayerProps) {
                 color: "var(--theme-primary-foreground)",
               }}
             >
-              {isSubmitting ? "Submitting..." : isLast ? "Submit" : isSectionStep ? "Continue" : "Next"}
+              {isSubmitting ? "Submitting..." : isLast ? "Submit" : isNonInputStep ? "Continue" : "Next"}
             </button>
           </div>
         )}

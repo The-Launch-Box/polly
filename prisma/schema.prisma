@@ -133,6 +133,8 @@ enum QuestionType {
   NPS
   CONTACT_INFO
   SECTION
+  POINT_ALLOCATION
+  TITLE_CARD
 }
 
 model Question {

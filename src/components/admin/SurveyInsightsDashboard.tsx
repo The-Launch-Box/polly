@@ -1,5 +1,7 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   Area,
   AreaChart,
@@ -38,13 +40,55 @@ const TOOLTIP_STYLE = {
 
 type SurveyInsightsDashboardProps = {
   insights: SurveyInsights;
+  formSlug: string;
+  canDeleteResponses?: boolean;
 };
 
 export function SurveyInsightsDashboard({
   insights,
+  formSlug,
+  canDeleteResponses = false,
 }: SurveyInsightsDashboardProps) {
+  const router = useRouter();
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   if (insights.responseCount === 0) {
     return null;
+  }
+
+  async function deleteSubmission(submissionId: string) {
+    if (
+      !window.confirm(
+        "Delete this response permanently? This cannot be undone.",
+      )
+    ) {
+      return;
+    }
+
+    setDeleteError(null);
+    setDeletingId(submissionId);
+    try {
+      const response = await fetch(
+        `/api/admin/forms/${formSlug}/submissions/${submissionId}`,
+        {
+          method: "DELETE",
+          credentials: "same-origin",
+        },
+      );
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        setDeleteError(data?.error ?? "Could not delete response.");
+        return;
+      }
+      router.refresh();
+    } catch {
+      setDeleteError("Could not delete response.");
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   const choicePieData = insights.questions
@@ -202,6 +246,12 @@ export function SurveyInsightsDashboard({
           </p>
         </div>
 
+        {deleteError ? (
+          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {deleteError}
+          </p>
+        ) : null}
+
         <ResponseTimingHeatmap
           questions={insights.questions}
           submissions={insights.submissions}
@@ -227,6 +277,20 @@ export function SurveyInsightsDashboard({
                       {formatDuration(submission.totalDurationMs)}
                     </span>
                   </span>
+                  {canDeleteResponses ? (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        void deleteSubmission(submission.id);
+                      }}
+                      disabled={deletingId === submission.id}
+                      className="rounded border border-red-200 px-2.5 py-1 text-xs font-medium text-red-700 transition hover:border-red-400 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {deletingId === submission.id ? "Deleting…" : "Delete"}
+                    </button>
+                  ) : null}
                   <span className="text-zinc-400 transition group-open:rotate-180">
                     ▾
                   </span>
@@ -340,7 +404,9 @@ function QuestionInsightCard({
         {hasChoiceData && (
           <div>
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">
-              Answer distribution
+              {question.type === "POINT_ALLOCATION"
+                ? "Points allocated"
+                : "Answer distribution"}
             </p>
             {isSingleChoice && choiceData.length <= 6 ? (
               <ResponsiveContainer width="100%" height={220}>
@@ -394,9 +460,19 @@ function QuestionInsightCard({
                   key={bucket.value}
                   className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600"
                 >
-                  {bucket.label}: {bucket.count}
-                  {responseCount > 0 &&
-                    ` (${Math.round((bucket.count / responseCount) * 100)}%)`}
+                  {question.type === "POINT_ALLOCATION" ? (
+                    <>
+                      {bucket.label}: {bucket.count} pts
+                      {responseCount > 0 &&
+                        ` (avg ${(bucket.count / responseCount).toFixed(1)})`}
+                    </>
+                  ) : (
+                    <>
+                      {bucket.label}: {bucket.count}
+                      {responseCount > 0 &&
+                        ` (${Math.round((bucket.count / responseCount) * 100)}%)`}
+                    </>
+                  )}
                 </span>
               ))}
             </div>

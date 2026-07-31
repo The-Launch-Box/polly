@@ -2,6 +2,8 @@ import { QuestionType } from "@/generated/prisma/enums";
 import {
   formatAnswerValue,
   isChoiceListOptions,
+  isPointAllocationAnswer,
+  isPointAllocationOptions,
   isScaleOptions,
   isSliderOptions,
   type QuestionOptions,
@@ -132,8 +134,16 @@ function summarizeQuestion(
   question: QuestionRecord,
   answers: AnswerRecord[],
 ): Pick<QuestionInsight, "summary" | "choiceBuckets" | "numericAvg" | "numericDistribution" | "textResponses"> {
-  if (question.type === QuestionType.SECTION) {
-    return { summary: "Section divider (no responses)" };
+  if (
+    question.type === QuestionType.SECTION ||
+    question.type === QuestionType.TITLE_CARD
+  ) {
+    return {
+      summary:
+        question.type === QuestionType.TITLE_CARD
+          ? "Title card (no responses)"
+          : "Section divider (no responses)",
+    };
   }
 
   const values = answers.map((answer) => answer.value);
@@ -301,6 +311,62 @@ function summarizeQuestion(
     return { summary: `${answers.length} contact response(s)` };
   }
 
+  if (question.type === QuestionType.POINT_ALLOCATION) {
+    const options = question.options;
+    if (!isPointAllocationOptions(options)) {
+      return { summary: `${answers.length} response(s)` };
+    }
+
+    const totals = new Map<string, number>();
+    for (const outcome of options.outcomes) {
+      totals.set(outcome.value, 0);
+    }
+
+    let responseCount = 0;
+    for (const value of values) {
+      if (isPointAllocationAnswer(value)) {
+        responseCount += 1;
+        for (const [key, points] of Object.entries(value)) {
+          totals.set(key, (totals.get(key) ?? 0) + points);
+        }
+        continue;
+      }
+      if (
+        Array.isArray(value) &&
+        value.every(
+          (item) =>
+            typeof item === "object" &&
+            item !== null &&
+            "value" in item &&
+            "points" in item,
+        )
+      ) {
+        responseCount += 1;
+        for (const item of value as Array<{ value: string; points: number }>) {
+          totals.set(item.value, (totals.get(item.value) ?? 0) + item.points);
+        }
+      }
+    }
+
+    if (responseCount === 0) {
+      return { summary: "No point allocations yet" };
+    }
+
+    const choiceBuckets = options.outcomes.map((outcome) => {
+      const total = totals.get(outcome.value) ?? 0;
+      return {
+        value: outcome.value,
+        label: outcome.label,
+        count: total,
+      };
+    });
+
+    return {
+      summary: `Total points across ${responseCount} response(s)`,
+      choiceBuckets,
+    };
+  }
+
   return { summary: `${answers.length} response(s)` };
 }
 
@@ -315,7 +381,11 @@ export function buildSurveyInsights(
   const questions = form.questions
     .slice()
     .sort((a, b) => a.order - b.order)
-    .filter((question) => question.type !== QuestionType.SECTION)
+    .filter(
+      (question) =>
+        question.type !== QuestionType.SECTION &&
+        question.type !== QuestionType.TITLE_CARD,
+    )
     .map((question) => {
       const questionAnswers = submissions.flatMap((submission) =>
         submission.answers
@@ -350,7 +420,11 @@ export function buildSurveyInsights(
     answers: form.questions
       .slice()
       .sort((a, b) => a.order - b.order)
-      .filter((question) => question.type !== QuestionType.SECTION)
+      .filter(
+        (question) =>
+          question.type !== QuestionType.SECTION &&
+          question.type !== QuestionType.TITLE_CARD,
+      )
       .map((question) => {
         const answer = submission.answers.find(
           (item) => item.questionId === question.id,

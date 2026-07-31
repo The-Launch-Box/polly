@@ -2,6 +2,7 @@ import { QuestionType } from "@/generated/prisma/enums";
 import { COMPANY_THEME_IDS, DEFAULT_THEME_ID } from "@/lib/company-themes";
 import {
   isQuestionTypeValue,
+  isNonInputQuestionType,
   isSectionType,
   type QuestionTypeValue,
 } from "@/lib/question-types";
@@ -18,6 +19,8 @@ import type {
   NpsContactField,
   ContactInfoOptions,
   SectionOptions,
+  TitleCardOptions,
+  PointAllocationOptions,
   QuestionVisibility,
   BranchCondition,
 } from "@/lib/types";
@@ -114,6 +117,17 @@ export function defaultOptionsForType(type: QuestionType): QuestionOptions {
       return { companyMode: "free", companies: [] };
     case "SECTION":
       return { description: "" };
+    case "TITLE_CARD":
+      return { description: "", links: [] };
+    case "POINT_ALLOCATION":
+      return {
+        totalPoints: 10,
+        outcomes: [
+          { value: "outcome-1", label: "" },
+          { value: "outcome-2", label: "" },
+          { value: "outcome-3", label: "" },
+        ],
+      };
     default:
       return { placeholder: "" };
   }
@@ -154,10 +168,11 @@ export function validateFormInput(input: FormInput): Record<string, string> {
   }
 
   const answerableCount = input.questions.filter(
-    (question) => !isSectionType(question.type),
+    (question) => !isNonInputQuestionType(question.type),
   ).length;
   if (answerableCount === 0) {
-    errors.questions = "Add at least one question (sections alone are not enough).";
+    errors.questions =
+      "Add at least one question (sections and title cards alone are not enough).";
   }
 
   if (input.anonymous && input.questions.some((question) => question.type === "CONTACT_INFO")) {
@@ -175,15 +190,20 @@ export function validateFormInput(input: FormInput): Record<string, string> {
   input.questions.forEach((question, index) => {
     const prefix = `questions.${index}`;
     const isSection = isSectionType(question.type);
+    const isTitleCard = question.type === "TITLE_CARD";
 
     if (!question.prompt?.trim()) {
       errors[`${prefix}.prompt`] = isSection
         ? "Section title is required."
-        : "Question prompt is required.";
+        : isTitleCard
+          ? "Title is required."
+          : "Question prompt is required.";
     } else if (question.prompt.length > 500) {
       errors[`${prefix}.prompt`] = isSection
         ? "Section title must be at most 500 characters."
-        : "Prompt must be at most 500 characters.";
+        : isTitleCard
+          ? "Title must be at most 500 characters."
+          : "Prompt must be at most 500 characters.";
     }
 
     if (question.order !== index + 1) {
@@ -245,8 +265,8 @@ function validateQuestionVisibility(
     }
 
     const targetType = questions[targetIndex].type;
-    if (isSectionType(targetType)) {
-      return "Branching rules cannot depend on sections.";
+    if (isNonInputQuestionType(targetType)) {
+      return "Branching rules cannot depend on sections or title cards.";
     }
     if (!operatorsForType(targetType).includes(condition.operator)) {
       return "That condition can't be used with the selected question.";
@@ -469,6 +489,74 @@ function validateQuestionOptions(
       }
       return null;
     }
+    case "TITLE_CARD": {
+      const titleCard = options as TitleCardOptions;
+      if (
+        titleCard.description !== undefined &&
+        typeof titleCard.description !== "string"
+      ) {
+        return "Title card description must be text.";
+      }
+      if (titleCard.description && titleCard.description.length > 500) {
+        return "Title card description must be at most 500 characters.";
+      }
+      if (titleCard.links) {
+        if (!Array.isArray(titleCard.links)) {
+          return "Title card links must be a list.";
+        }
+        if (titleCard.links.length > 8) {
+          return "Add at most 8 social links.";
+        }
+        for (const link of titleCard.links) {
+          if (!link.label?.trim() || !link.url?.trim()) {
+            return "Each social link needs a label and URL.";
+          }
+          try {
+            new URL(link.url.trim());
+          } catch {
+            return "Social link URLs must be valid.";
+          }
+        }
+      }
+      return null;
+    }
+    case "POINT_ALLOCATION": {
+      const allocation = options as PointAllocationOptions;
+      if (
+        typeof allocation.totalPoints !== "number" ||
+        !Number.isInteger(allocation.totalPoints) ||
+        allocation.totalPoints < 1
+      ) {
+        return "Total points must be a whole number of at least 1.";
+      }
+      if (allocation.totalPoints > 100) {
+        return "Total points can be at most 100.";
+      }
+      if (!Array.isArray(allocation.outcomes) || allocation.outcomes.length < 2) {
+        return "Add at least two outcomes.";
+      }
+      if (allocation.outcomes.length > 20) {
+        return "Add at most 20 outcomes.";
+      }
+      const values = new Set<string>();
+      for (const item of allocation.outcomes) {
+        if (!item.label?.trim()) {
+          return "Each outcome needs a label.";
+        }
+        const value = item.value?.trim();
+        if (!value) {
+          return "Each outcome needs a value.";
+        }
+        if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value)) {
+          return "Outcome values must use lowercase letters, numbers, and hyphens.";
+        }
+        if (values.has(value)) {
+          return "Outcome values must be unique.";
+        }
+        values.add(value);
+      }
+      return null;
+    }
     default:
       return "Unsupported question type.";
   }
@@ -488,7 +576,7 @@ export function normalizeFormInput(input: FormInput): FormInput {
       order: index + 1,
       type: question.type,
       prompt: question.prompt.trim(),
-      required: isSectionType(question.type) ? false : question.required,
+      required: isNonInputQuestionType(question.type) ? false : question.required,
       options: normalizeQuestionOptions(question.type, question.options),
       visibility: normalizeQuestionVisibility(question.visibility),
     })),
@@ -654,6 +742,31 @@ function normalizeQuestionOptions(
         ...(section.description?.trim()
           ? { description: section.description.trim() }
           : {}),
+      };
+    }
+    case "TITLE_CARD": {
+      const titleCard = options as TitleCardOptions;
+      const links = (titleCard.links ?? [])
+        .map((link) => ({
+          label: link.label.trim(),
+          url: link.url.trim(),
+        }))
+        .filter((link) => link.label && link.url);
+      return {
+        ...(titleCard.description?.trim()
+          ? { description: titleCard.description.trim() }
+          : {}),
+        links,
+      };
+    }
+    case "POINT_ALLOCATION": {
+      const allocation = options as PointAllocationOptions;
+      return {
+        totalPoints: allocation.totalPoints,
+        outcomes: allocation.outcomes.map((item) => ({
+          value: item.value.trim(),
+          label: item.label.trim(),
+        })),
       };
     }
     default:

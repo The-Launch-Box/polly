@@ -54,13 +54,15 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/src/generated ./src/generated
 COPY --from=builder --chown=nextjs:nodejs /app/src/lib ./src/lib
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/docker-entrypoint.sh ./scripts/docker-entrypoint.sh
 
 RUN mkdir -p /tmp/polly-uploads /app/.uploads /app/.next/cache \
-  && chown -R nextjs:nodejs /app /tmp/polly-uploads
+  && chown -R nextjs:nodejs /app /tmp/polly-uploads \
+  && chmod +x /app/scripts/docker-entrypoint.sh
 
 USER nextjs
 
 EXPOSE 3000
 
-# Match the working deploy: next start (Railway overrides with startCommand)
-CMD ["npx", "next", "start", "--hostname", "0.0.0.0"]
+# Apply pending Prisma migrations, then `next start` (Railway overrides with startCommand).
+CMD ["./scripts/docker-entrypoint.sh"]

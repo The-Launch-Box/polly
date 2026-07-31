@@ -26,6 +26,7 @@ export type FormAction =
   | "form:view_responses"
   | "form:export"
   | "form:edit"
+  | "form:delete_responses"
   | "form:manage_webhooks"
   | "form:create"
   | "group:manage"
@@ -150,6 +151,9 @@ export function can(
     case "form:edit":
     case "form:manage_webhooks":
       return isOwner || managerOnShared || accessRole === "COLLABORATOR";
+    case "form:delete_responses":
+      // Managers (and above via ADMIN bypass), or the survey owner (e.g. CREATOR).
+      return hasOrgRoleAtLeast(actor, "MANAGER") || isOwner;
     default:
       return false;
   }

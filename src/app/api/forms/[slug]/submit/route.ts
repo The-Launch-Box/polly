@@ -18,9 +18,13 @@ import {
   isHeatmapOptions,
   isHeatmapPoint,
   isNpsOptions,
+  isPointAllocationAnswer,
+  isPointAllocationOptions,
   isScaleOptions,
   isShortTextOptions,
   isSliderOptions,
+  pointAllocationTotal,
+  type PointAllocationOptions,
 } from "@/lib/types";
 import { validateNpsAnswer } from "@/lib/nps";
 import { validateContactInfoAnswer, normalizeContactInfoAnswer, isContactInfoAnswer, isContactInfoComplete } from "@/lib/contact-info";
@@ -222,8 +226,49 @@ function validateAnswer(
     case QuestionType.CONTACT_INFO: {
       return validateContactInfoAnswer(value, required, anonymous);
     }
+    case QuestionType.POINT_ALLOCATION: {
+      if (!isPointAllocationOptions(options)) {
+        return "Invalid point allocation configuration.";
+      }
+      if (isEmptyAnswer(value)) {
+        return required ? "This question is required." : null;
+      }
+      if (!isPointAllocationAnswer(value)) {
+        return "Point allocation answers must map outcomes to whole-number points.";
+      }
+
+      const knownValues = new Set(options.outcomes.map((outcome) => outcome.value));
+      let total = 0;
+      for (const [key, points] of Object.entries(value)) {
+        if (!knownValues.has(key)) {
+          return "Invalid outcome selected.";
+        }
+        if (!Number.isInteger(points) || points < 0) {
+          return "Points must be non-negative whole numbers.";
+        }
+        if (points > options.totalPoints) {
+          return `No outcome can receive more than ${options.totalPoints} points.`;
+        }
+        total += points;
+      }
+
+      for (const outcome of options.outcomes) {
+        if (!(outcome.value in value)) {
+          return "Allocate points for every outcome (use 0 if unused).";
+        }
+      }
+
+      if (!required && total === 0) {
+        return null;
+      }
+      if (total !== options.totalPoints) {
+        return `Distribute exactly ${options.totalPoints} points across outcomes.`;
+      }
+      return null;
+    }
     case QuestionType.SECTION:
-      // Sections are structural markers and never collect answers.
+    case QuestionType.TITLE_CARD:
+      // Structural / informational screens — never collect answers.
       return null;
     default:
       return "Unsupported question type.";
@@ -319,7 +364,10 @@ export async function POST(
     if (!visibleQuestionIds.has(question.id)) {
       continue;
     }
-    if (question.type === QuestionType.SECTION) {
+    if (
+      question.type === QuestionType.SECTION ||
+      question.type === QuestionType.TITLE_CARD
+    ) {
       continue;
     }
     const answer = answersByQuestion.get(question.id);
@@ -359,7 +407,10 @@ export async function POST(
           if (!visibleQuestionIds.has(question.id)) {
             return null;
           }
-          if (question.type === QuestionType.SECTION) {
+          if (
+            question.type === QuestionType.SECTION ||
+            question.type === QuestionType.TITLE_CARD
+          ) {
             return null;
           }
           const answer = answersByQuestion.get(question.id);
@@ -375,6 +426,13 @@ export async function POST(
             isContactInfoAnswer(rawValue) &&
             !isContactInfoComplete(rawValue) &&
             !question.required
+          ) {
+            return null;
+          }
+          if (
+            question.type === QuestionType.POINT_ALLOCATION &&
+            isPointAllocationAnswer(rawValue) &&
+            pointAllocationTotal(rawValue) === 0
           ) {
             return null;
           }
@@ -444,6 +502,18 @@ export async function POST(
             isContactInfoAnswer(storedValue)
           ) {
             storedValue = normalizeContactInfoAnswer(storedValue);
+          }
+          if (
+            question.type === QuestionType.POINT_ALLOCATION &&
+            isPointAllocationAnswer(rawValue) &&
+            isPointAllocationOptions(question.options as QuestionOptions | null)
+          ) {
+            const allocationOptions = question.options as PointAllocationOptions;
+            storedValue = allocationOptions.outcomes.map((outcome) => ({
+              value: outcome.value,
+              label: outcome.label,
+              points: rawValue[outcome.value] ?? 0,
+            }));
           }
 
           return {

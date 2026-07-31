@@ -94,6 +94,20 @@ export type SectionOptions = {
   description?: string;
 };
 
+export type TitleCardOptions = {
+  description?: string;
+  /** Buttons linking out to social profiles or other URLs. */
+  links?: NpsLink[];
+};
+
+export type PointAllocationOptions = {
+  totalPoints: number;
+  outcomes: ChoiceOption[];
+};
+
+/** Map of outcome value → allocated points. */
+export type PointAllocationAnswer = Record<string, number>;
+
 export type ContactInfoAnswer = {
   firstName: string;
   lastName: string;
@@ -111,7 +125,9 @@ export type QuestionOptions =
   | AttachmentOptions
   | NpsOptions
   | ContactInfoOptions
-  | SectionOptions;
+  | SectionOptions
+  | TitleCardOptions
+  | PointAllocationOptions;
 
 export type BranchOperator =
   | "equals"
@@ -314,8 +330,70 @@ export function isSectionOptions(
     !("companyMode" in options) &&
     !("companies" in options) &&
     !("placeholder" in options) &&
-    !("maxLength" in options)
+    !("maxLength" in options) &&
+    !("totalPoints" in options) &&
+    !("outcomes" in options) &&
+    !("links" in options)
   );
+}
+
+export function isTitleCardOptions(
+  options: QuestionOptions | null,
+): options is TitleCardOptions {
+  return (
+    options !== null &&
+    typeof options === "object" &&
+    ("description" in options || "links" in options) &&
+    !("min" in options) &&
+    !("choices" in options) &&
+    !("imageUrl" in options) &&
+    !("firmName" in options) &&
+    !("allowedKinds" in options) &&
+    !("maxSizeMb" in options) &&
+    !("companyMode" in options) &&
+    !("companies" in options) &&
+    !("placeholder" in options) &&
+    !("maxLength" in options) &&
+    !("totalPoints" in options) &&
+    !("outcomes" in options)
+  );
+}
+
+export function isPointAllocationOptions(
+  options: QuestionOptions | null,
+): options is PointAllocationOptions {
+  return (
+    options !== null &&
+    typeof options === "object" &&
+    "totalPoints" in options &&
+    "outcomes" in options &&
+    Array.isArray((options as PointAllocationOptions).outcomes)
+  );
+}
+
+export function isPointAllocationAnswer(
+  value: unknown,
+): value is PointAllocationAnswer {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  return Object.values(value).every(
+    (points) => typeof points === "number" && Number.isInteger(points) && points >= 0,
+  );
+}
+
+export function emptyPointAllocationAnswer(
+  options: PointAllocationOptions,
+): PointAllocationAnswer {
+  const answer: PointAllocationAnswer = {};
+  for (const outcome of options.outcomes) {
+    answer[outcome.value] = 0;
+  }
+  return answer;
+}
+
+export function pointAllocationTotal(answer: PointAllocationAnswer): number {
+  return Object.values(answer).reduce((sum, points) => sum + points, 0);
 }
 
 export function isContactInfoAnswer(value: unknown): value is ContactInfoAnswer {
@@ -394,6 +472,32 @@ export function formatAnswerValue(value: unknown): string {
   }
   if (isContactInfoAnswer(value)) {
     return `${value.firstName} ${value.lastName} · ${value.email} · ${value.businessName}`;
+  }
+  if (isPointAllocationAnswer(value)) {
+    const parts = Object.entries(value)
+      .filter(([, points]) => points > 0)
+      .map(([key, points]) => `${key}: ${points}`);
+    return parts.length > 0 ? parts.join(", ") : "—";
+  }
+  if (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every(
+      (item) =>
+        typeof item === "object" &&
+        item !== null &&
+        "label" in item &&
+        "points" in item &&
+        typeof (item as { points: unknown }).points === "number",
+    )
+  ) {
+    const parts = value
+      .filter((item) => (item as { points: number }).points > 0)
+      .map(
+        (item) =>
+          `${String((item as { label: string }).label)}: ${(item as { points: number }).points}`,
+      );
+    return parts.length > 0 ? parts.join(", ") : "—";
   }
   if (typeof value === "object" && value !== null && "label" in value) {
     return String((value as { label: string }).label);

@@ -1,4 +1,4 @@
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type { AttachmentAnswer } from "@/lib/types";
@@ -65,4 +65,9 @@ export async function readAttachmentFile(
   const absolutePath = path.join(getAttachmentsRoot(), submissionId, questionId, filename);
   const [buffer, info] = await Promise.all([readFile(absolutePath), stat(absolutePath)]);
   return { buffer, sizeBytes: info.size };
+}
+
+export async function deleteSubmissionAttachments(submissionId: string): Promise<void> {
+  const directory = path.join(getAttachmentsRoot(), submissionId);
+  await rm(directory, { recursive: true, force: true });
 }

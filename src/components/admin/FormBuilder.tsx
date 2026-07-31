@@ -13,8 +13,10 @@ import { formatFileSize } from "@/lib/attachments-shared";
 import { DEFAULT_THEME_ID } from "@/lib/company-themes";
 import {
   asQuestionType,
+  isNonInputQuestionType,
   isQuestionTypeValue,
   isSectionType,
+  isTitleCardType,
   QUESTION_TYPE_LABELS,
   QUESTION_TYPE_VALUES,
 } from "@/lib/question-types";
@@ -46,6 +48,8 @@ import type {
   NpsLink,
   ContactInfoOptions,
   SectionOptions,
+  PointAllocationOptions,
+  TitleCardOptions,
   BranchCondition,
   BranchOperator,
   QuestionVisibility,
@@ -133,7 +137,7 @@ function answerableDisplayNumber(
 ): number {
   let number = 0;
   for (let i = 0; i <= index; i++) {
-    if (!isSectionType(questions[i].type)) {
+    if (!isNonInputQuestionType(questions[i].type)) {
       number += 1;
     }
   }
@@ -141,7 +145,8 @@ function answerableDisplayNumber(
 }
 
 function answerableCount(questions: QuestionDraft[]): number {
-  return questions.filter((question) => !isSectionType(question.type)).length;
+  return questions.filter((question) => !isNonInputQuestionType(question.type))
+    .length;
 }
 
 function createQuestionDraftFromExisting(question: FormQuestionInput): QuestionDraft {
@@ -259,6 +264,7 @@ export function FormBuilder({
           ...question,
           type,
           options,
+          required: isNonInputQuestionType(type) ? false : question.required,
           ...(type === "NPS" && "firmName" in options
             ? {
                 prompt: getDefaultNpsPrompt(
@@ -309,6 +315,10 @@ export function FormBuilder({
       if (!target) return current;
 
       if (isSectionType(target.type)) {
+        return current.filter((q) => q.key !== key);
+      }
+
+      if (isTitleCardType(target.type)) {
         return current.filter((q) => q.key !== key);
       }
 
@@ -451,7 +461,9 @@ export function FormBuilder({
           order: index + 1,
           type: question.type,
           prompt: question.prompt,
-          required: isSectionType(question.type) ? false : question.required,
+          required: isNonInputQuestionType(question.type)
+            ? false
+            : question.required,
           options: question.options,
           visibility: question.visibility ?? null,
         };
@@ -693,14 +705,17 @@ export function FormBuilder({
                 displayNumber={answerableDisplayNumber(questions, index)}
                 question={question}
                 total={questions.length}
-                canRemove={answerableCount(questions) > 1}
+                canRemove={
+                  isTitleCardType(question.type) ||
+                  answerableCount(questions) > 1
+                }
                 anonymous={anonymous}
                 errors={fieldErrors}
                 collapsed={collapsedKeys.has(question.key)}
                 onToggleCollapse={() => toggleCollapsed(question.key)}
                 precedingQuestions={questions
                   .slice(0, index)
-                  .filter((q) => !isSectionType(q.type))
+                  .filter((q) => !isNonInputQuestionType(q.type))
                   .map((q) => ({
                     id: q.id ?? q.key,
                     position: answerableDisplayNumber(
@@ -941,6 +956,7 @@ function QuestionEditor({
   const hasError = Object.keys(errors).some((k) => k.startsWith(prefix));
 
   const promptSummary = question.prompt.trim() || "(untitled)";
+  const isTitleCard = isTitleCardType(question.type);
 
   const collapsedWithError = collapsed && hasError;
 
@@ -954,7 +970,7 @@ function QuestionEditor({
           aria-expanded={!collapsed}
         >
           <span className="shrink-0 text-xs font-medium uppercase tracking-wide text-zinc-400">
-            Q{displayNumber}
+            {isTitleCard ? "Title" : `Q${displayNumber}`}
           </span>
           <span className="shrink-0 rounded bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">
             {QUESTION_TYPE_LABELS[question.type]}
@@ -1021,25 +1037,31 @@ function QuestionEditor({
           </select>
         </Field>
 
-        <Field label="Required" htmlFor={`required-${question.key}`}>
-          <label className="flex h-10 items-center gap-2 text-sm text-zinc-700">
-            <input
-              id={`required-${question.key}`}
-              type="checkbox"
-              checked={question.required}
-              onChange={(event) =>
-                onChange({ required: event.target.checked })
-              }
-              className="h-4 w-4 rounded border-zinc-300"
-            />
-            Respondents must answer this question
-          </label>
-        </Field>
+        {!isTitleCard ? (
+          <Field label="Required" htmlFor={`required-${question.key}`}>
+            <label className="flex h-10 items-center gap-2 text-sm text-zinc-700">
+              <input
+                id={`required-${question.key}`}
+                type="checkbox"
+                checked={question.required}
+                onChange={(event) =>
+                  onChange({ required: event.target.checked })
+                }
+                className="h-4 w-4 rounded border-zinc-300"
+              />
+              Respondents must answer this question
+            </label>
+          </Field>
+        ) : (
+          <div className="flex h-10 items-center text-sm text-zinc-500">
+            Title cards do not collect a response
+          </div>
+        )}
       </div>
 
       <div className="mt-4">
         <Field
-          label="Prompt"
+          label={isTitleCard ? "Title" : "Prompt"}
           htmlFor={`prompt-${question.key}`}
           error={promptError}
           required
@@ -1049,7 +1071,11 @@ function QuestionEditor({
             value={question.prompt}
             onChange={(event) => onChange({ prompt: event.target.value })}
             className={inputClass(promptError)}
-            placeholder="What would you like to ask?"
+            placeholder={
+              isTitleCard
+                ? "e.g. Follow us on social"
+                : "What would you like to ask?"
+            }
           />
         </Field>
       </div>
@@ -1862,6 +1888,84 @@ function QuestionOptionsEditor({
     );
   }
 
+  if (type === "TITLE_CARD") {
+    const titleCard = options as TitleCardOptions;
+    const links = titleCard.links ?? [];
+
+    return (
+      <div className="space-y-4">
+        <Field
+          label="Description"
+          htmlFor="title-card-description"
+          hint="Optional short text shown under the title."
+        >
+          <textarea
+            id="title-card-description"
+            value={titleCard.description ?? ""}
+            onChange={(event) =>
+              onChange({ ...titleCard, description: event.target.value })
+            }
+            rows={3}
+            maxLength={500}
+            className={inputClass()}
+            placeholder="Connect with us on your favorite platforms."
+          />
+        </Field>
+
+        <div className="space-y-3">
+          <p className="text-sm font-medium text-zinc-700">Social links</p>
+          <p className="text-xs text-zinc-500">
+            Add buttons that open LinkedIn, X/Twitter, or any other URL.
+          </p>
+          {links.map((link, index) => (
+            <div key={index} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+              <input
+                value={link.label}
+                onChange={(event) => {
+                  const next = [...links];
+                  next[index] = { ...next[index], label: event.target.value };
+                  onChange({ ...titleCard, links: next });
+                }}
+                className={inputClass()}
+                placeholder="LinkedIn"
+              />
+              <input
+                value={link.url}
+                onChange={(event) => {
+                  const next = [...links];
+                  next[index] = { ...next[index], url: event.target.value };
+                  onChange({ ...titleCard, links: next });
+                }}
+                className={inputClass()}
+                placeholder="https://..."
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const next = links.filter((_, i) => i !== index);
+                  onChange({ ...titleCard, links: next });
+                }}
+                className="rounded border border-zinc-200 px-3 py-2 text-sm text-zinc-600"
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => {
+              const next: NpsLink[] = [...links, { label: "", url: "" }];
+              onChange({ ...titleCard, links: next });
+            }}
+            className="text-sm font-medium text-zinc-700 underline"
+          >
+            Add link
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (type === "CONTACT_INFO") {
     const contactInfo = options as ContactInfoOptions;
     const companyMode = contactInfo.companyMode ?? "free";
@@ -1942,6 +2046,103 @@ function QuestionOptionsEditor({
             </button>
           </div>
         )}
+      </div>
+    );
+  }
+
+  if (type === "POINT_ALLOCATION") {
+    const allocation = options as PointAllocationOptions;
+    return (
+      <div className="space-y-4">
+        <Field
+          label="Total points"
+          htmlFor="point-allocation-total"
+          hint="Respondents distribute this many points across the outcomes below."
+          required
+        >
+          <input
+            id="point-allocation-total"
+            type="number"
+            min={1}
+            max={100}
+            value={allocation.totalPoints}
+            onChange={(event) =>
+              onChange({
+                ...allocation,
+                totalPoints: Number(event.target.value) || 1,
+              })
+            }
+            className={inputClass()}
+          />
+        </Field>
+        <div className="space-y-3">
+          <p className="text-sm font-medium text-zinc-800">Outcomes</p>
+          {allocation.outcomes.map((item, index) => (
+            <div key={index} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+              <input
+                value={item.label}
+                onChange={(event) => {
+                  const next = [...allocation.outcomes];
+                  const label = event.target.value;
+                  next[index] = {
+                    ...next[index],
+                    label,
+                    value:
+                      next[index].value.startsWith("outcome-") ||
+                      next[index].value === slugify(next[index].label)
+                        ? slugify(label) || next[index].value
+                        : next[index].value,
+                  };
+                  onChange({ ...allocation, outcomes: next });
+                }}
+                className={inputClass()}
+                placeholder={`Outcome ${index + 1}`}
+              />
+              <input
+                value={item.value}
+                onChange={(event) => {
+                  const next = [...allocation.outcomes];
+                  next[index] = { ...next[index], value: event.target.value };
+                  onChange({ ...allocation, outcomes: next });
+                }}
+                className={inputClass()}
+                placeholder="value-slug"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (allocation.outcomes.length <= 2) return;
+                  onChange({
+                    ...allocation,
+                    outcomes: allocation.outcomes.filter((_, i) => i !== index),
+                  });
+                }}
+                disabled={allocation.outcomes.length <= 2}
+                className="rounded border border-zinc-200 px-3 py-2 text-xs text-zinc-600 disabled:opacity-40"
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() =>
+              onChange({
+                ...allocation,
+                outcomes: [
+                  ...allocation.outcomes,
+                  {
+                    value: `outcome-${allocation.outcomes.length + 1}`,
+                    label: "",
+                  },
+                ],
+              })
+            }
+            className="text-sm font-medium text-zinc-700 underline-offset-2 hover:underline"
+          >
+            Add outcome
+          </button>
+        </div>
       </div>
     );
   }
