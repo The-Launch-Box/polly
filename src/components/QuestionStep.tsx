@@ -11,6 +11,7 @@ import type {
   ContactInfoOptions,
   FormQuestion,
   HeatmapPoint,
+  MultipleChoiceOptions,
   PointAllocationAnswer,
   PointAllocationOptions,
   SectionOptions,
@@ -174,7 +175,7 @@ export function QuestionStep({
         {question.type === "MULTIPLE_CHOICE" &&
           isChoiceListOptions(question.options) && (
             <MultipleChoiceInput
-              options={question.options}
+              options={question.options as MultipleChoiceOptions}
               value={Array.isArray(value) ? value.filter((v) => typeof v === "string") : []}
               onChange={onChange}
             />
@@ -508,28 +509,56 @@ function MultipleChoiceInput({
   value,
   onChange,
 }: {
-  options: { choices: { value: string; label: string }[] };
+  options: MultipleChoiceOptions;
   value: string[];
   onChange: (value: string[]) => void;
 }) {
+  const min = options.minSelections ?? 1;
+  const max = options.maxSelections ?? options.choices.length;
+  const atMax = value.length >= max;
+
   function toggle(choiceValue: string) {
     if (value.includes(choiceValue)) {
       onChange(value.filter((item) => item !== choiceValue));
       return;
     }
+    // Max of 1: selecting another option replaces the current one.
+    if (max === 1) {
+      onChange([choiceValue]);
+      return;
+    }
+    if (value.length >= max) {
+      return;
+    }
     onChange([...value, choiceValue]);
   }
 
+  const limitHint =
+    min === max
+      ? `Select ${min}`
+      : max < options.choices.length
+        ? `Select ${min}–${max}`
+        : min > 1
+          ? `Select at least ${min}`
+          : null;
+
   return (
     <div className="space-y-2">
+      {limitHint ? (
+        <p className="text-sm" style={{ color: "var(--theme-text-muted)" }}>
+          {limitHint}
+        </p>
+      ) : null}
       {options.choices.map((choice) => {
         const selected = value.includes(choice.value);
+        const disabled = !selected && atMax && max > 1;
         return (
           <button
             key={choice.value}
             type="button"
             onClick={() => toggle(choice.value)}
-            className="flex w-full items-center rounded-xl border px-4 py-3 text-left text-sm font-medium transition"
+            disabled={disabled}
+            className="flex w-full items-center rounded-xl border px-4 py-3 text-left text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40"
             style={
               selected
                 ? {

@@ -11,7 +11,9 @@ import {
   isNpsOptions,
   isPointAllocationAnswer,
   isPointAllocationOptions,
+  isChoiceListOptions,
   pointAllocationTotal,
+  type MultipleChoiceOptions,
 } from "@/lib/types";
 import { ProgressBar } from "@/components/ProgressBar";
 import { QuestionStep } from "@/components/QuestionStep";
@@ -244,6 +246,31 @@ export function FormPlayer({ form }: FormPlayerProps) {
       return null;
     }
 
+    if (question.type === "MULTIPLE_CHOICE") {
+      if (!isChoiceListOptions(question.options)) {
+        return "This question is misconfigured.";
+      }
+      const multi = question.options as MultipleChoiceOptions;
+      const min = multi.minSelections ?? 1;
+      const max = multi.maxSelections ?? multi.choices.length;
+      const selected = Array.isArray(value)
+        ? value.filter((item): item is string => typeof item === "string")
+        : [];
+
+      if (selected.length === 0) {
+        return question.required
+          ? "Please select at least one option before continuing."
+          : null;
+      }
+      if (selected.length < min) {
+        return `Select at least ${min} option${min === 1 ? "" : "s"}.`;
+      }
+      if (selected.length > max) {
+        return `Select at most ${max} option${max === 1 ? "" : "s"}.`;
+      }
+      return null;
+    }
+
     if (!question.required) return null;
 
     if (
@@ -268,13 +295,6 @@ export function FormPlayer({ form }: FormPlayerProps) {
       ) {
         return "Please click on the image before continuing.";
       }
-    }
-    if (
-      question.type === "MULTIPLE_CHOICE" &&
-      Array.isArray(value) &&
-      value.length === 0
-    ) {
-      return "Please select at least one option before continuing.";
     }
     return null;
   }
