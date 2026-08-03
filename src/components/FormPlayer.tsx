@@ -693,7 +693,7 @@ export function FormPlayer({ form }: FormPlayerProps) {
         )}
 
         {!isNpsOnlyPage && !sectionHasIncompleteNps && (
-          <div className="sticky bottom-0 mt-auto flex items-center justify-between gap-4 bg-[var(--theme-background,var(--background))] pt-10 pb-2">
+          <div className="sticky bottom-0 mt-auto flex items-center justify-between gap-4 bg-transparent pt-10 pb-2">
             <button
               type="button"
               onClick={handleBack}
