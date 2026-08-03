@@ -1,4 +1,6 @@
 import ReactMarkdown from "react-markdown";
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 
 type MarkdownContentProps = {
   content: string;
@@ -7,9 +9,24 @@ type MarkdownContentProps = {
   themed?: boolean;
 };
 
+const sanitizeSchema = {
+  ...defaultSchema,
+  tagNames: [...(defaultSchema.tagNames ?? []), "span"],
+  attributes: {
+    ...defaultSchema.attributes,
+    span: ["className", "class"],
+  },
+};
+
+const SIZE_CLASS_MAP: Record<string, string> = {
+  "md-size-sm": "text-xs sm:text-sm",
+  "md-size-lg": "text-base sm:text-lg",
+  "md-size-xl": "text-lg sm:text-xl",
+};
+
 /**
- * Renders markdown descriptions safely (no raw HTML).
- * Supports bold, italic, and headings used by MarkdownEditor.
+ * Renders markdown descriptions safely (limited HTML for text-size spans).
+ * Supports bold, italic, H1–H4, and Small/Large/XL size wrappers from MarkdownEditor.
  */
 export function MarkdownContent({
   content,
@@ -28,9 +45,13 @@ export function MarkdownContent({
       style={themed ? { color: muted } : { color: "#52525b" }}
     >
       <ReactMarkdown
+        rehypePlugins={[rehypeRaw, [rehypeSanitize, sanitizeSchema]]}
         components={{
           p: ({ children }) => (
-            <p className="leading-relaxed" style={themed ? { color: muted } : undefined}>
+            <p
+              className="leading-relaxed"
+              style={themed ? { color: muted } : undefined}
+            >
               {children}
             </p>
           ),
@@ -45,7 +66,7 @@ export function MarkdownContent({
           em: ({ children }) => <em className="italic">{children}</em>,
           h1: ({ children }) => (
             <h1
-              className="text-xl font-semibold leading-snug sm:text-2xl"
+              className="text-2xl font-semibold leading-snug sm:text-3xl"
               style={themed ? { color: text } : { color: "#18181b" }}
             >
               {children}
@@ -53,7 +74,7 @@ export function MarkdownContent({
           ),
           h2: ({ children }) => (
             <h2
-              className="text-lg font-semibold leading-snug sm:text-xl"
+              className="text-xl font-semibold leading-snug sm:text-2xl"
               style={themed ? { color: text } : { color: "#18181b" }}
             >
               {children}
@@ -61,12 +82,34 @@ export function MarkdownContent({
           ),
           h3: ({ children }) => (
             <h3
-              className="text-base font-semibold leading-snug sm:text-lg"
+              className="text-lg font-semibold leading-snug sm:text-xl"
               style={themed ? { color: text } : { color: "#18181b" }}
             >
               {children}
             </h3>
           ),
+          h4: ({ children }) => (
+            <h4
+              className="text-base font-semibold leading-snug sm:text-lg"
+              style={themed ? { color: text } : { color: "#18181b" }}
+            >
+              {children}
+            </h4>
+          ),
+          span: ({ className: spanClass, children }) => {
+            const sizeClass =
+              typeof spanClass === "string"
+                ? spanClass
+                    .split(/\s+/)
+                    .map((token) => SIZE_CLASS_MAP[token])
+                    .filter(Boolean)
+                    .join(" ")
+                : "";
+            if (!sizeClass) {
+              return <span>{children}</span>;
+            }
+            return <span className={sizeClass}>{children}</span>;
+          },
           ul: ({ children }) => (
             <ul className="list-disc space-y-1 pl-5">{children}</ul>
           ),

@@ -873,7 +873,7 @@ function SectionEditor({
             label="Description"
             htmlFor={`section-description-${section.key}`}
             error={optionsError}
-            hint="Optional text shown under the section title above its questions. Use the toolbar for bold, italic, and headings."
+            hint="Optional text shown under the section title above its questions. Use the toolbar for bold, italic, headings (H1–H4), and text size."
             asDiv
           >
             <MarkdownEditor

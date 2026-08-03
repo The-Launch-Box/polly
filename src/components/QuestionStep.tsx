@@ -127,6 +127,18 @@ export function QuestionStep({
 
   return (
     <div>
+      {!question.required && (
+        <span
+          className="mb-3 inline-block rounded-md border px-2 py-0.5 text-xs font-medium uppercase tracking-wide"
+          style={{
+            color: "var(--theme-text-muted)",
+            borderColor: "var(--theme-border)",
+            backgroundColor: "var(--theme-surface)",
+          }}
+        >
+          Optional
+        </span>
+      )}
       <h2
         className={
           stacked
@@ -137,14 +149,6 @@ export function QuestionStep({
       >
         {question.prompt}
       </h2>
-      {!question.required && (
-        <p
-          className="mt-2 text-sm"
-          style={{ color: "var(--theme-text-muted)" }}
-        >
-          Optional
-        </p>
-      )}
 
       <div className={stacked ? "mt-5" : "mt-8"}>
         {question.type === "SCALE" && isScaleOptions(question.options) && (

@@ -188,18 +188,24 @@ export function NpsFlow({
         </>
       ) : (
         <>
+          {step === "followup" && (
+            <span
+              className="mb-3 inline-block rounded-md border px-2 py-0.5 text-xs font-medium uppercase tracking-wide"
+              style={{
+                color: "var(--theme-text-muted)",
+                borderColor: "var(--theme-border)",
+                backgroundColor: "var(--theme-surface)",
+              }}
+            >
+              Optional
+            </span>
+          )}
           <h2
             className="text-2xl font-semibold leading-snug sm:text-3xl"
             style={{ color: "var(--theme-text)" }}
           >
             {step === "followup" ? getNpsFollowUpPrompt(options) : prompt}
           </h2>
-
-          {step === "followup" && (
-            <p className="mt-2 text-sm" style={{ color: "var(--theme-text-muted)" }}>
-              Optional
-            </p>
-          )}
 
           <div className="mt-8">
             {step === "score" && (
