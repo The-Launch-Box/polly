@@ -532,21 +532,59 @@ function QuestionInsightCard({
       </div>
 
       {question.textResponses && question.textResponses.length > 0 && (
-        <ul className="mt-5 space-y-2 border-t border-zinc-100 pt-4">
-          {question.textResponses.map((response, index) => (
-            <li
-              key={`${response.value}-${index}`}
-              className="flex flex-wrap items-start justify-between gap-2 rounded-lg bg-zinc-50 px-3 py-2 text-sm"
-            >
-              <span className="text-zinc-800">{response.value}</span>
-              <span className="text-zinc-500 tabular-nums">
-                {formatDuration(response.durationMs)}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <TextResponsesList responses={question.textResponses} />
       )}
     </article>
+  );
+}
+
+const INITIAL_TEXT_RESPONSES = 3;
+
+function TextResponsesList({
+  responses,
+}: {
+  responses: Array<{ value: string; durationMs: number | null }>;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const visible = expanded
+    ? responses
+    : responses.slice(0, INITIAL_TEXT_RESPONSES);
+  const hiddenCount = responses.length - INITIAL_TEXT_RESPONSES;
+
+  return (
+    <div className="mt-5 border-t border-zinc-100 pt-4">
+      <ul className="space-y-2">
+        {visible.map((response, index) => (
+          <li
+            key={`${response.value}-${index}`}
+            className="flex flex-wrap items-start justify-between gap-2 rounded-lg bg-zinc-50 px-3 py-2 text-sm"
+          >
+            <span className="text-zinc-800">{response.value}</span>
+            <span className="text-zinc-500 tabular-nums">
+              {formatDuration(response.durationMs)}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {hiddenCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setExpanded((current) => !current)}
+          className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:border-zinc-400 hover:bg-zinc-50"
+          aria-expanded={expanded}
+        >
+          <span
+            className={`inline-block text-xs transition-transform ${expanded ? "rotate-180" : ""}`}
+            aria-hidden="true"
+          >
+            ▾
+          </span>
+          {expanded
+            ? "Show less"
+            : `Show ${hiddenCount} more response${hiddenCount === 1 ? "" : "s"}`}
+        </button>
+      )}
+    </div>
   );
 }
 

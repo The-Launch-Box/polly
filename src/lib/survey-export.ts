@@ -40,9 +40,7 @@ export function buildSurveyInsightsForExport(
 }
 
 function questionHeaders(insights: SurveyInsights): string[] {
-  return insights.questions.map(
-    (question) => `Q${question.order}: ${question.prompt}`,
-  );
+  return insights.questions.map((question) => String(question.order));
 }
 
 function durationMsToSeconds(ms: number | null | undefined): number | null {
