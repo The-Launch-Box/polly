@@ -93,12 +93,9 @@ export function QuestionStep({
           {question.prompt}
         </h2>
         {description ? (
-          <p
-            className="mx-auto mt-4 max-w-lg text-base leading-relaxed sm:text-lg"
-            style={{ color: "var(--theme-text-muted)" }}
-          >
-            {description}
-          </p>
+          <div className="mx-auto mt-4 max-w-lg text-center">
+            <MarkdownContent content={description} themed />
+          </div>
         ) : null}
         {links.length > 0 ? (
           <div className="mt-8 flex flex-wrap justify-center gap-3">
