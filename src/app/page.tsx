@@ -7,7 +7,7 @@ export default function HomePage() {
   return (
     <main className="tlb-shell relative flex min-h-screen items-center justify-center bg-background px-4 text-foreground">
       <div className="absolute left-4 top-4 sm:left-6 sm:top-6">
-        <LaunchBoxWordmark href="https://thelaunchbox.com" />
+        <LaunchBoxWordmark />
       </div>
 
       <div className="w-full max-w-lg rounded-lg border border-border bg-card p-8">

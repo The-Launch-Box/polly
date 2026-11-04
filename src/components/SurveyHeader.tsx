@@ -27,7 +27,7 @@ export function SurveyHeader({
       }}
     >
       <div className="flex items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        <LaunchBoxWordmark href="/" className="shrink-0" />
+        <LaunchBoxWordmark className="shrink-0" />
         <div className="flex min-w-0 items-center justify-end gap-4">
           {theme.logoSrc && (
             // eslint-disable-next-line @next/next/no-img-element

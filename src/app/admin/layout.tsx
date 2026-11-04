@@ -34,7 +34,7 @@ export default async function AdminLayout({
       <header className="border-b border-border bg-card">
         <div className="flex items-center justify-between gap-4 px-4 py-2.5 sm:px-6">
           <div className="flex min-w-0 flex-wrap items-center gap-x-6 gap-y-2">
-            <LaunchBoxWordmark href="/" className="shrink-0" />
+            <LaunchBoxWordmark className="shrink-0" />
             <nav className="flex flex-wrap items-center gap-4 text-sm">
               <AdminNavLink href="/admin/forms">Surveys</AdminNavLink>
               <AdminNavLink href="/admin/submissions">Submissions</AdminNavLink>

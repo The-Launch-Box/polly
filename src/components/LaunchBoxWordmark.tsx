@@ -12,7 +12,7 @@ type LaunchBoxWordmarkProps = {
  * "ACCELERATED BY THE LAUNCH BOX" in Bebas Neue Pro.
  */
 export function LaunchBoxWordmark({
-  href = "/",
+  href = "https://os.thelaunchbox.com/",
   className,
   linked = true,
 }: LaunchBoxWordmarkProps) {
@@ -36,6 +36,15 @@ export function LaunchBoxWordmark({
       <span className={classNames} aria-label="The Launch Box">
         {mark}
       </span>
+    );
+  }
+
+  const external = href.startsWith("http://") || href.startsWith("https://");
+  if (external) {
+    return (
+      <a href={href} className={classNames} aria-label="The Launch Box">
+        {mark}
+      </a>
     );
   }
 
