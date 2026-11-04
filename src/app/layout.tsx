@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Survey App",
-  description: "The Launch Box's internal survey app for portfolio companies",
+  title: "Polly",
+  description: "Polly, The Launch Box's internal survey tool for portfolio companies",
 };
 
 export default function RootLayout({
