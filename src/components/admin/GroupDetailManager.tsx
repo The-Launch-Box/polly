@@ -105,24 +105,24 @@ export function GroupDetailManager({
 
   return (
     <div className="space-y-8">
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-negative">{error}</p>}
 
-      <section className="rounded-xl border border-zinc-200 bg-white p-5">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+      <section className="rounded-xl border border-border bg-card p-5">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Members
         </h2>
-        <ul className="mt-4 divide-y divide-zinc-100">
+        <ul className="mt-4 divide-y divide-border">
           {initialMembers.map((member) => (
             <li
               key={member.userId}
               className="flex items-center justify-between gap-3 py-3 text-sm"
             >
               <div>
-                <p className="font-medium text-zinc-900">
+                <p className="font-medium text-foreground">
                   {member.name ?? member.email}
                 </p>
                 {member.name && (
-                  <p className="text-zinc-500">{member.email}</p>
+                  <p className="text-muted-foreground">{member.email}</p>
                 )}
               </div>
               {canManage && (
@@ -130,7 +130,7 @@ export function GroupDetailManager({
                   type="button"
                   disabled={pending}
                   onClick={() => removeMember(member.userId)}
-                  className="text-xs text-zinc-500 hover:text-red-600"
+                  className="text-xs text-muted-foreground hover:text-negative"
                 >
                   Remove
                 </button>
@@ -144,7 +144,7 @@ export function GroupDetailManager({
             <select
               value={userId}
               onChange={(event) => setUserId(event.target.value)}
-              className="min-w-[14rem] flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+              className="min-w-[14rem] flex-1 rounded-lg border border-border px-3 py-2 text-sm"
               required
             >
               <option value="">Add organization member…</option>
@@ -157,7 +157,7 @@ export function GroupDetailManager({
             <button
               type="submit"
               disabled={pending}
-              className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-accent-soft disabled:opacity-60"
             >
               Add
             </button>
@@ -165,12 +165,12 @@ export function GroupDetailManager({
         )}
       </section>
 
-      <section className="rounded-xl border border-zinc-200 bg-white p-5">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+      <section className="rounded-xl border border-border bg-card p-5">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Shared surveys
         </h2>
         {initialShares.length === 0 ? (
-          <p className="mt-3 text-sm text-zinc-500">
+          <p className="mt-3 text-sm text-muted-foreground">
             No surveys shared with this group yet. Open a survey → Sharing to
             grant access.
           </p>
@@ -179,18 +179,18 @@ export function GroupDetailManager({
             {initialShares.map((share) => (
               <li
                 key={share.id}
-                className="flex items-center justify-between rounded-lg border border-zinc-100 px-3 py-2 text-sm"
+                className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm"
               >
                 <div>
-                  <p className="font-medium text-zinc-900">{share.formTitle}</p>
-                  <p className="text-zinc-500">
+                  <p className="font-medium text-foreground">{share.formTitle}</p>
+                  <p className="text-muted-foreground">
                     /q/{share.formSlug} · {share.role}
                     {share.canExport ? " · export" : ""}
                   </p>
                 </div>
                 <a
                   href={`/admin/forms/${share.formSlug}/sharing`}
-                  className="text-xs text-zinc-500 hover:text-zinc-800"
+                  className="text-xs text-muted-foreground hover:text-foreground"
                 >
                   Manage
                 </a>
@@ -205,7 +205,7 @@ export function GroupDetailManager({
           type="button"
           disabled={pending}
           onClick={deleteGroup}
-          className="text-sm text-red-600 hover:underline"
+          className="text-sm text-negative hover:underline"
         >
           Delete group
         </button>

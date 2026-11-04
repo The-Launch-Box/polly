@@ -28,95 +28,85 @@ export type CompanyTheme = {
 
 export const DEFAULT_THEME_ID = "default";
 
+const TLB_SANS =
+  '"Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif';
+
+/** Dark operating surface shared with os.thelaunchbox.com. */
+const TLB_DARK_COLORS: CompanyTheme["colors"] = {
+  primary: "#FF6600",
+  accent: "#FF844D",
+  background: "#0d1117",
+  surface: "#161b22",
+  text: "#f0f6fc",
+  textMuted: "#8b949e",
+  border: "#30363d",
+  progressTrack: "#21262d",
+  primaryForeground: "#ffffff",
+};
+
 export const COMPANY_THEMES: CompanyTheme[] = [
   {
     id: DEFAULT_THEME_ID,
-    name: "Neutral (no brand)",
+    name: "The Launch Box",
     company: "The Launch Box",
     website: "thelaunchbox.com",
     logoSrc: null,
     logoAlt: "",
     logoHeight: 0,
-    fontFamily:
-      'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-    colors: {
-      primary: "#18181b",
-      accent: "#3f3f46",
-      background: "#fafafa",
-      surface: "#ffffff",
-      text: "#18181b",
-      textMuted: "#71717a",
-      border: "#e4e4e7",
-      progressTrack: "#e4e4e7",
-    },
+    fontFamily: TLB_SANS,
+    colors: TLB_DARK_COLORS,
   },
   {
     id: "launch-box-cyan",
-    name: "The Launch Box — Cyan",
+    name: "The Launch Box (Dark)",
     company: "The Launch Box",
     website: "thelaunchbox.com",
-    logoSrc: "/company-themes/launch-box.png",
+    logoSrc: null,
     logoAlt: "The Launch Box",
-    logoHeight: 30,
-    // Cyan shell with black text + black logo; brand rocket orange (#f0541e) as accent
-    fontFamily:
-      'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-    colors: {
-      primary: "#000000",
-      accent: "#f0541e",
-      background: "#06b6d4",
-      surface: "#22d3ee",
-      text: "#000000",
-      textMuted: "#0e5561",
-      border: "#0891b2",
-      progressTrack: "#0e7490",
-      primaryForeground: "#ffffff",
-    },
+    logoHeight: 0,
+    fontFamily: TLB_SANS,
+    colors: TLB_DARK_COLORS,
   },
   {
     id: "launch-box-white",
-    name: "The Launch Box — White",
+    name: "The Launch Box (Light)",
     company: "The Launch Box",
     website: "thelaunchbox.com",
-    logoSrc: "/company-themes/launch-box.png",
+    logoSrc: null,
     logoAlt: "The Launch Box",
-    logoHeight: 30,
-    // Clean white shell with black text + black logo; brand rocket orange (#f0541e) as accent
-    fontFamily:
-      'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+    logoHeight: 0,
+    fontFamily: TLB_SANS,
     colors: {
-      primary: "#000000",
-      accent: "#f0541e",
+      primary: "#FF6600",
+      accent: "#FF6600",
       background: "#ffffff",
       surface: "#ffffff",
       text: "#000000",
-      textMuted: "#52525b",
-      border: "#e4e4e7",
-      progressTrack: "#e4e4e7",
+      textMuted: "#1A1A1A",
+      border: "#E5E5E5",
+      progressTrack: "#E5E5E5",
       primaryForeground: "#ffffff",
     },
   },
   {
     id: "launch-box-black",
-    name: "The Launch Box — Black",
+    name: "The Launch Box (Black)",
     company: "The Launch Box",
     website: "thelaunchbox.com",
-    logoSrc: "/company-themes/launch-box-white.png",
+    logoSrc: null,
     logoAlt: "The Launch Box",
-    logoHeight: 30,
-    // Black shell with white text + white logo; brand rocket orange (#f0541e) as accent
-    fontFamily:
-      'ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+    logoHeight: 0,
+    fontFamily: TLB_SANS,
     colors: {
-      primary: "#ffffff",
-      accent: "#f0541e",
+      primary: "#FF6600",
+      accent: "#FF844D",
       background: "#000000",
-      surface: "#111111",
+      surface: "#1A1A1A",
       text: "#ffffff",
-      textMuted: "#a1a1aa",
-      border: "#27272a",
-      progressTrack: "#27272a",
-      primaryForeground: "#000000",
+      textMuted: "#F5F5F5",
+      border: "#1A1A1A",
+      progressTrack: "#1A1A1A",
+      primaryForeground: "#ffffff",
     },
   },
   {
@@ -262,7 +252,20 @@ export function getCompanyTheme(themeId: string | null | undefined): CompanyThem
   return THEME_BY_ID.get(themeId) ?? THEME_BY_ID.get(DEFAULT_THEME_ID)!;
 }
 
-export function themeCssVariables(theme: CompanyTheme): Record<string, string> {
+function colorSchemeFor(background: string): "dark" | "light" {
+  const hex = background.trim().replace("#", "");
+  if (hex.length !== 6) return "light";
+  const r = Number.parseInt(hex.slice(0, 2), 16);
+  const g = Number.parseInt(hex.slice(2, 4), 16);
+  const b = Number.parseInt(hex.slice(4, 6), 16);
+  if ([r, g, b].some((channel) => Number.isNaN(channel))) return "light";
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance < 0.55 ? "dark" : "light";
+}
+
+export function themeCssVariables(
+  theme: CompanyTheme,
+): Record<string, string> {
   return {
     ["--theme-primary" as string]: theme.colors.primary,
     ["--theme-accent" as string]: theme.colors.accent,
@@ -277,5 +280,6 @@ export function themeCssVariables(theme: CompanyTheme): Record<string, string> {
     fontFamily: theme.fontFamily,
     backgroundColor: theme.colors.background,
     color: theme.colors.text,
+    colorScheme: colorSchemeFor(theme.colors.background),
   };
 }

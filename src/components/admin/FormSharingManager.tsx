@@ -83,28 +83,28 @@ export function FormSharingManager({
 
   return (
     <div className="space-y-6">
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-negative">{error}</p>}
 
-      <section className="rounded-xl border border-zinc-200 bg-white p-5">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+      <section className="rounded-xl border border-border bg-card p-5">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Current shares
         </h2>
         {initialAccess.length === 0 ? (
-          <p className="mt-3 text-sm text-zinc-500">
+          <p className="mt-3 text-sm text-muted-foreground">
             Not shared with any groups yet.
           </p>
         ) : (
-          <ul className="mt-4 divide-y divide-zinc-100">
+          <ul className="mt-4 divide-y divide-border">
             {initialAccess.map((row) => (
               <li
                 key={row.id}
                 className="flex items-center justify-between gap-3 py-3 text-sm"
               >
                 <div>
-                  <p className="font-medium text-zinc-900">
+                  <p className="font-medium text-foreground">
                     {row.groupName ?? "Group"}
                   </p>
-                  <p className="text-zinc-500">
+                  <p className="text-muted-foreground">
                     {row.role}
                     {row.canExport ? " · can export" : ""}
                   </p>
@@ -114,7 +114,7 @@ export function FormSharingManager({
                     type="button"
                     disabled={pending}
                     onClick={() => removeShare(row.id)}
-                    className="text-xs text-zinc-500 hover:text-red-600"
+                    className="text-xs text-muted-foreground hover:text-negative"
                   >
                     Remove
                   </button>
@@ -128,18 +128,18 @@ export function FormSharingManager({
       {canManage && (
         <form
           onSubmit={addShare}
-          className="space-y-3 rounded-xl border border-zinc-200 bg-white p-5"
+          className="space-y-3 rounded-xl border border-border bg-card p-5"
         >
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             Share with a group
           </h2>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="flex flex-col gap-1 text-sm">
-              <span className="text-zinc-600">Group</span>
+              <span className="text-muted-foreground">Group</span>
               <select
                 value={groupId}
                 onChange={(event) => setGroupId(event.target.value)}
-                className="rounded-lg border border-zinc-300 px-3 py-2"
+                className="rounded-lg border border-border px-3 py-2"
                 required
               >
                 <option value="">Select group…</option>
@@ -151,13 +151,13 @@ export function FormSharingManager({
               </select>
             </label>
             <label className="flex flex-col gap-1 text-sm">
-              <span className="text-zinc-600">Access</span>
+              <span className="text-muted-foreground">Access</span>
               <select
                 value={role}
                 onChange={(event) =>
                   setRole(event.target.value as FormAccessRole)
                 }
-                className="rounded-lg border border-zinc-300 px-3 py-2"
+                className="rounded-lg border border-border px-3 py-2"
               >
                 {roles.map((value) => (
                   <option key={value} value={value}>
@@ -168,7 +168,7 @@ export function FormSharingManager({
             </label>
           </div>
           {(role === "ANALYST" || role === "COLLABORATOR") && (
-            <label className="flex items-center gap-2 text-sm text-zinc-700">
+            <label className="flex items-center gap-2 text-sm text-foreground">
               <input
                 type="checkbox"
                 checked={canExport}
@@ -177,19 +177,19 @@ export function FormSharingManager({
               Allow CSV export
             </label>
           )}
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-muted-foreground">
             Viewer = dashboards only · Analyst = responses · Collaborator = edit
             questions
           </p>
           <button
             type="submit"
             disabled={pending || availableGroups.length === 0}
-            className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-60"
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-accent-soft disabled:opacity-60"
           >
             Share survey
           </button>
           {availableGroups.length === 0 && (
-            <p className="text-sm text-zinc-500">
+            <p className="text-sm text-muted-foreground">
               Create a group under Groups, or this survey is already shared with
               every group.
             </p>

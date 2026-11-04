@@ -400,6 +400,24 @@ function ScaleInput({
   );
 }
 
+function choiceButtonStyle(selected: boolean): React.CSSProperties {
+  if (!selected) {
+    return {
+      borderColor: "var(--theme-border)",
+      backgroundColor: "var(--theme-surface)",
+      color: "var(--theme-text)",
+    };
+  }
+
+  return {
+    borderColor: "var(--theme-primary)",
+    backgroundColor:
+      "color-mix(in srgb, var(--theme-primary) 18%, var(--theme-surface))",
+    color: "var(--theme-text)",
+    boxShadow: "inset 2px 0 0 var(--theme-primary)",
+  };
+}
+
 function SliderInput({
   options,
   value,
@@ -470,19 +488,7 @@ function SingleChoiceInput({
             type="button"
             onClick={() => onChange(choice.value)}
             className="flex w-full items-center rounded-xl border px-4 py-3 text-left text-sm font-medium transition"
-            style={
-              selected
-                ? {
-                    borderColor: "var(--theme-primary)",
-                    backgroundColor: "var(--theme-surface)",
-                    color: "var(--theme-text)",
-                  }
-                : {
-                    borderColor: "var(--theme-border)",
-                    backgroundColor: "var(--theme-surface)",
-                    color: "var(--theme-text)",
-                  }
-            }
+            style={choiceButtonStyle(selected)}
             aria-pressed={selected}
           >
             <span
@@ -563,19 +569,7 @@ function MultipleChoiceInput({
             onClick={() => toggle(choice.value)}
             disabled={disabled}
             className="flex w-full items-center rounded-xl border px-4 py-3 text-left text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-40"
-            style={
-              selected
-                ? {
-                    borderColor: "var(--theme-primary)",
-                    backgroundColor: "var(--theme-surface)",
-                    color: "var(--theme-text)",
-                  }
-                : {
-                    borderColor: "var(--theme-border)",
-                    backgroundColor: "var(--theme-surface)",
-                    color: "var(--theme-text)",
-                  }
-            }
+            style={choiceButtonStyle(selected)}
             aria-pressed={selected}
           >
             <span
@@ -705,7 +699,7 @@ function HeatmapInput({
         {points.map((point, index) => (
           <span
             key={`${point.x}-${point.y}-${index}`}
-            className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-red-500 shadow"
+            className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-negative-dim0 shadow"
             style={{ left: `${point.x}%`, top: `${point.y}%` }}
           />
         ))}

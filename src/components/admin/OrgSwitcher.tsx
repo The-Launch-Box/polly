@@ -67,10 +67,10 @@ export function OrgSwitcher({
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <label className="flex items-center gap-2 text-xs text-zinc-500">
+      <label className="flex items-center gap-2 text-xs text-muted-foreground">
         <span className="hidden sm:inline">Org</span>
         <select
-          className="max-w-[12rem] rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-800"
+          className="max-w-[12rem] rounded-md border border-border bg-card px-2 py-1 text-xs text-foreground"
           value={value}
           disabled={pending}
           onChange={(event) => onChange(event.target.value)}
@@ -82,7 +82,7 @@ export function OrgSwitcher({
           ))}
         </select>
       </label>
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-negative">{error}</p>}
     </div>
   );
 }

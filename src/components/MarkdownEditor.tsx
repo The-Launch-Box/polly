@@ -158,16 +158,16 @@ export function MarkdownEditor({
     return "default";
   }
 
-  const borderClass = error ? "border-red-300" : "border-zinc-300";
+  const borderClass = error ? "border-negative" : "border-border";
   const selectClass =
-    "rounded border border-zinc-200 bg-white px-1.5 py-1 text-xs text-zinc-800 outline-none focus:border-zinc-400";
+    "rounded border border-border bg-input px-1.5 py-1 text-xs text-foreground outline-none focus:border-ring";
 
   return (
     <div
-      className={`overflow-hidden rounded-lg border bg-white ${borderClass} ${className}`}
+      className={`overflow-hidden rounded-lg border bg-card ${borderClass} ${className}`}
     >
       <div
-        className="flex flex-wrap items-center gap-1 border-b border-zinc-200 bg-zinc-50 px-2 py-1.5"
+        className="flex flex-wrap items-center gap-1 border-b border-border bg-muted px-2 py-1.5"
         role="toolbar"
         aria-label="Text formatting"
       >
@@ -188,9 +188,9 @@ export function MarkdownEditor({
           <span className="ml-1 hidden text-xs sm:inline">Italic</span>
         </ToolbarButton>
 
-        <span className="mx-1 h-4 w-px bg-zinc-300" aria-hidden="true" />
+        <span className="mx-1 h-4 w-px bg-border" aria-hidden="true" />
 
-        <label className="flex items-center gap-1 text-xs text-zinc-600">
+        <label className="flex items-center gap-1 text-xs text-muted-foreground">
           <span className="whitespace-nowrap">Heading</span>
           <select
             value={currentHeading()}
@@ -209,9 +209,9 @@ export function MarkdownEditor({
           </select>
         </label>
 
-        <span className="mx-1 h-4 w-px bg-zinc-300" aria-hidden="true" />
+        <span className="mx-1 h-4 w-px bg-border" aria-hidden="true" />
 
-        <label className="flex items-center gap-1 text-xs text-zinc-600">
+        <label className="flex items-center gap-1 text-xs text-muted-foreground">
           <span className="whitespace-nowrap">Size</span>
           <select
             value={currentTextSize()}
@@ -240,7 +240,7 @@ export function MarkdownEditor({
         rows={rows}
         maxLength={maxLength}
         placeholder={placeholder}
-        className="w-full resize-y border-0 bg-white px-3 py-2 text-sm text-zinc-900 outline-none placeholder:text-zinc-400"
+        className="w-full resize-y border-0 bg-input px-3 py-2 text-sm text-foreground outline-none placeholder:text-fg-faint"
       />
     </div>
   );
@@ -264,7 +264,7 @@ function ToolbarButton({
       aria-label={label}
       onMouseDown={(event) => event.preventDefault()}
       onClick={onClick}
-      className="flex h-7 items-center justify-center rounded px-2 text-sm text-zinc-700 transition hover:bg-zinc-200"
+      className="flex h-7 items-center justify-center rounded px-2 text-sm text-foreground transition hover:bg-muted"
     >
       {children}
     </button>

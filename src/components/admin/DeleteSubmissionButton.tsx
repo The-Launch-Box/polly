@@ -53,7 +53,7 @@ export function DeleteSubmissionButton({
       type="button"
       onClick={() => void handleDelete()}
       disabled={isDeleting}
-      className="rounded border border-red-200 px-2.5 py-1 text-xs font-medium text-red-700 transition hover:border-red-400 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+      className="rounded border border-negative/40 px-2.5 py-1 text-xs font-medium text-negative transition hover:border-negative hover:bg-negative-dim disabled:cursor-not-allowed disabled:opacity-50"
     >
       {isDeleting ? "Deleting…" : "Delete"}
     </button>

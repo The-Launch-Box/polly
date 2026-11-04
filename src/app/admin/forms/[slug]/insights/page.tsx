@@ -94,32 +94,32 @@ export default async function SurveyInsightsPage({ params }: PageProps) {
 
   return (
     <>
-      <header className="border-b border-zinc-200 bg-white">
+      <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-4">
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Survey dashboard
             </p>
-            <h1 className="text-xl font-semibold text-zinc-900">{form.title}</h1>
-            <p className="text-sm text-zinc-500">/q/{form.slug}</p>
+            <h1 className="text-xl font-semibold text-foreground">{form.title}</h1>
+            <p className="text-sm text-muted-foreground">/q/{form.slug}</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <SurveyExportMenu formSlug={form.slug} />
             <Link
               href={`/q/${form.slug}`}
-              className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-800 transition hover:border-zinc-500"
+              className="rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground transition hover:border-muted-foreground"
             >
               Open survey
             </Link>
             <Link
               href={`/admin/forms/${form.slug}/edit`}
-              className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-800 transition hover:border-zinc-500"
+              className="rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground transition hover:border-muted-foreground"
             >
               Edit survey
             </Link>
             <Link
               href="/admin/forms"
-              className="text-sm text-zinc-500 transition hover:text-zinc-800"
+              className="text-sm text-muted-foreground transition hover:text-foreground"
             >
               All surveys
             </Link>
@@ -138,9 +138,9 @@ export default async function SurveyInsightsPage({ params }: PageProps) {
         </section>
 
         {insights.responseCount === 0 ? (
-          <div className="rounded-xl border border-dashed border-zinc-300 bg-white p-8 text-center text-sm text-zinc-500">
+          <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
             No responses yet. Share{" "}
-            <Link href={`/q/${form.slug}`} className="text-zinc-800 underline">
+            <Link href={`/q/${form.slug}`} className="text-foreground underline">
               /q/{form.slug}
             </Link>{" "}
             to start collecting data.
@@ -159,11 +159,11 @@ export default async function SurveyInsightsPage({ params }: PageProps) {
 
 function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+    <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {label}
       </p>
-      <p className="mt-2 text-2xl font-semibold text-zinc-900">{value}</p>
+      <p className="mt-2 text-2xl font-semibold text-foreground">{value}</p>
     </div>
   );
 }

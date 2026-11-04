@@ -65,7 +65,7 @@ export function NpsFlow({
 
   if (!options) {
     return (
-      <p className="text-sm text-red-600" role="alert">
+      <p className="text-sm text-negative" role="alert">
         This NPS question is misconfigured.
       </p>
     );
@@ -239,7 +239,7 @@ export function NpsFlow({
       )}
 
       {error && (
-        <p className="mt-4 text-sm text-red-600" role="alert">
+        <p className="mt-4 text-sm text-negative" role="alert">
           {error}
         </p>
       )}

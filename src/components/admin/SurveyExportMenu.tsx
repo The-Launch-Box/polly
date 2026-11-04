@@ -32,7 +32,7 @@ export function SurveyExportMenu({ formSlug }: { formSlug: string }) {
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-medium text-white transition hover:bg-zinc-700"
+        className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition hover:bg-accent-soft"
         aria-expanded={open}
         aria-haspopup="menu"
       >
@@ -41,12 +41,12 @@ export function SurveyExportMenu({ formSlug }: { formSlug: string }) {
       {open && (
         <div
           role="menu"
-          className="absolute right-0 z-20 mt-2 w-44 overflow-hidden rounded-lg border border-zinc-200 bg-white py-1 shadow-lg"
+          className="absolute right-0 z-20 mt-2 w-44 overflow-hidden rounded-lg border border-border bg-card py-1 shadow-lg"
         >
           <a
             role="menuitem"
             href={`/api/admin/forms/${formSlug}/export?format=xlsx`}
-            className="block px-3 py-2 text-sm text-zinc-800 hover:bg-zinc-50"
+            className="block px-3 py-2 text-sm text-foreground hover:bg-muted"
             onClick={() => setOpen(false)}
           >
             Excel (.xlsx)
@@ -54,7 +54,7 @@ export function SurveyExportMenu({ formSlug }: { formSlug: string }) {
           <a
             role="menuitem"
             href={`/api/admin/forms/${formSlug}/export?format=csv`}
-            className="block px-3 py-2 text-sm text-zinc-800 hover:bg-zinc-50"
+            className="block px-3 py-2 text-sm text-foreground hover:bg-muted"
             onClick={() => setOpen(false)}
           >
             CSV (.csv)

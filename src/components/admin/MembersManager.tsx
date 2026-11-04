@@ -46,11 +46,11 @@ export function MembersManager({
 
   return (
     <div className="space-y-4">
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-negative">{error}</p>}
 
-      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-zinc-100 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
+          <thead className="border-b border-border bg-muted text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
               <th className="px-4 py-3 font-medium">Member</th>
               <th className="px-4 py-3 font-medium">Role</th>
@@ -58,21 +58,21 @@ export function MembersManager({
           </thead>
           <tbody>
             {initialMembers.map((member) => (
-              <tr key={member.userId} className="border-b border-zinc-50">
+              <tr key={member.userId} className="border-b border-border">
                 <td className="px-4 py-3">
-                  <p className="font-medium text-zinc-900">
+                  <p className="font-medium text-foreground">
                     {member.name ?? member.email}
                     {member.userId === currentUserId && (
-                      <span className="ml-2 text-xs font-normal text-zinc-400">
+                      <span className="ml-2 text-xs font-normal text-fg-faint">
                         (you)
                       </span>
                     )}
                   </p>
-                  <p className="text-zinc-500">{member.email}</p>
+                  <p className="text-muted-foreground">{member.email}</p>
                 </td>
                 <td className="px-4 py-3">
                   <select
-                    className="rounded-md border border-zinc-300 bg-white px-2 py-1.5 text-sm"
+                    className="rounded-md border border-border bg-card px-2 py-1.5 text-sm"
                     value={member.role}
                     disabled={pending || member.userId === currentUserId}
                     onChange={(event) =>
@@ -92,8 +92,8 @@ export function MembersManager({
         </table>
       </div>
 
-      <div className="rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-600">
-        <p className="font-medium text-zinc-800">How promotion works</p>
+      <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
+        <p className="font-medium text-foreground">How promotion works</p>
         <ul className="mt-2 list-disc space-y-1 pl-5">
           <li>
             Users join automatically on first Microsoft sign-in with an org email

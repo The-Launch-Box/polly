@@ -26,17 +26,17 @@ export default async function AdminFormsPage() {
 
   return (
     <>
-      <header className="border-b border-zinc-200 bg-white">
+      <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-4">
           <div>
-            <h1 className="text-xl font-semibold text-zinc-900">Surveys</h1>
-            <p className="text-sm text-zinc-500">
+            <h1 className="text-xl font-semibold text-foreground">Surveys</h1>
+            <p className="text-sm text-muted-foreground">
               Create and share internal one-question-at-a-time forms.
             </p>
           </div>
           <Link
             href="/admin/forms/new"
-            className="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800"
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-accent-soft"
           >
             Create survey
           </Link>
@@ -45,11 +45,11 @@ export default async function AdminFormsPage() {
 
       <div className="mx-auto max-w-5xl px-4 py-8">
         {forms.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-zinc-300 bg-white p-8 text-center">
-            <p className="text-sm text-zinc-500">No surveys yet.</p>
+          <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center">
+            <p className="text-sm text-muted-foreground">No surveys yet.</p>
             <Link
               href="/admin/forms/new"
-              className="mt-3 inline-block text-sm font-medium text-zinc-900 underline-offset-2 hover:underline"
+              className="mt-3 inline-block text-sm font-medium text-foreground underline-offset-2 hover:underline"
             >
               Create your first survey
             </Link>
@@ -61,31 +61,31 @@ export default async function AdminFormsPage() {
               return (
               <article
                 key={form.id}
-                className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-white p-5 shadow-sm"
+                className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-card p-5 shadow-sm"
               >
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="font-medium text-zinc-900">{form.title}</h2>
-                    <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">
+                    <h2 className="font-medium text-foreground">{form.title}</h2>
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
                       {theme.name}
                     </span>
                   </div>
-                  <p className="mt-1 text-sm text-zinc-500">
+                  <p className="mt-1 text-sm text-muted-foreground">
                     /q/{form.slug} · {form._count.questions} question
                     {form._count.questions === 1 ? "" : "s"} ·{" "}
                     {form._count.submissions} submission
                     {form._count.submissions === 1 ? "" : "s"}
                   </p>
                   {showOwnerEmail && (
-                    <p className="mt-1 text-sm text-zinc-500">
+                    <p className="mt-1 text-sm text-muted-foreground">
                       Owner:{" "}
-                      <span className="font-medium text-zinc-700">
+                      <span className="font-medium text-foreground">
                         {form.ownerEmail ?? "Unknown user"}
                       </span>
                     </p>
                   )}
                   {form.description && (
-                    <p className="mt-2 text-sm text-zinc-600">
+                    <p className="mt-2 text-sm text-muted-foreground">
                       {form.description}
                     </p>
                   )}
@@ -93,31 +93,31 @@ export default async function AdminFormsPage() {
                 <div className="flex items-center gap-3">
                   <Link
                     href={`/admin/forms/${form.slug}/insights`}
-                    className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-800 transition hover:border-zinc-500"
+                    className="rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground transition hover:border-muted-foreground"
                   >
                     Dashboard
                   </Link>
                   <Link
                     href={`/admin/forms/${form.slug}/edit`}
-                    className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-800 transition hover:border-zinc-500"
+                    className="rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground transition hover:border-muted-foreground"
                   >
                     Edit
                   </Link>
                   <Link
                     href={`/admin/forms/${form.slug}/sharing`}
-                    className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-800 transition hover:border-zinc-500"
+                    className="rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground transition hover:border-muted-foreground"
                   >
                     Sharing
                   </Link>
                   <Link
                     href={`/q/${form.slug}`}
-                    className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-800 transition hover:border-zinc-500"
+                    className="rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground transition hover:border-muted-foreground"
                   >
                     Open survey
                   </Link>
                   <Link
                     href="/admin/submissions"
-                    className="text-sm text-zinc-500 transition hover:text-zinc-800"
+                    className="text-sm text-muted-foreground transition hover:text-foreground"
                   >
                     Submissions
                   </Link>

@@ -41,15 +41,15 @@ export default async function AdminMembersPage() {
 
   return (
     <>
-      <header className="border-b border-zinc-200 bg-white">
+      <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
           <div>
-            <h1 className="text-xl font-semibold text-zinc-900">Members</h1>
-            <p className="text-sm text-zinc-500">
+            <h1 className="text-xl font-semibold text-foreground">Members</h1>
+            <p className="text-sm text-muted-foreground">
               Promote people to Manager or Admin for this organization.
             </p>
           </div>
-          <Link href="/admin/forms" className="text-sm text-zinc-500 hover:text-zinc-800">
+          <Link href="/admin/forms" className="text-sm text-muted-foreground hover:text-foreground">
             Surveys
           </Link>
         </div>

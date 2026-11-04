@@ -20,21 +20,23 @@ import {
 import { formatDuration, type QuestionInsight, type SurveyInsights } from "@/lib/survey-insights";
 
 const CHART_PALETTE = [
-  "#18181b",
-  "#3f3f46",
-  "#52525b",
-  "#71717a",
-  "#2563eb",
-  "#7c3aed",
-  "#0d9488",
-  "#ea580c",
-  "#ca8a04",
-  "#db2777",
+  "#FF6600",
+  "#8b949e",
+  "#58a6ff",
+  "#f0f6fc",
+  "#FF844D",
+  "#6e7681",
+  "#4ade80",
+  "#fbbf24",
+  "#FF3300",
+  "#c9d1d9",
 ];
 
 const TOOLTIP_STYLE = {
+  background: "#161b22",
+  color: "#f0f6fc",
   borderRadius: "8px",
-  border: "1px solid #e4e4e7",
+  border: "1px solid #30363d",
   fontSize: "12px",
 };
 
@@ -108,11 +110,11 @@ export function SurveyInsightsDashboard({
                 data={insights.questionTimingChart}
                 margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
               >
-                <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" />
-                <XAxis dataKey="question" tick={{ fontSize: 12 }} stroke="#a1a1aa" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#30363d" />
+                <XAxis dataKey="question" tick={{ fontSize: 12 }} stroke="#8b949e" />
                 <YAxis
                   tick={{ fontSize: 12 }}
-                  stroke="#a1a1aa"
+                  stroke="#8b949e"
                   unit="s"
                   width={36}
                 />
@@ -127,9 +129,9 @@ export function SurveyInsightsDashboard({
                   }}
                 />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="avgSeconds" name="Average" fill="#18181b" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="minSeconds" name="Min" fill="#a1a1aa" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="maxSeconds" name="Max" fill="#52525b" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="avgSeconds" name="Average" fill="#FF6600" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="minSeconds" name="Min" fill="#6e7681" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="maxSeconds" name="Max" fill="#8b949e" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
@@ -149,15 +151,15 @@ export function SurveyInsightsDashboard({
               >
                 <defs>
                   <linearGradient id="responseFill" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.35} />
-                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#FF6600" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#FF6600" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#30363d" />
                 <XAxis
                   dataKey="date"
                   tick={{ fontSize: 11 }}
-                  stroke="#a1a1aa"
+                  stroke="#8b949e"
                   tickFormatter={(value: string) =>
                     new Date(`${value}T12:00:00`).toLocaleDateString(undefined, {
                       month: "short",
@@ -165,7 +167,7 @@ export function SurveyInsightsDashboard({
                     })
                   }
                 />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} stroke="#a1a1aa" width={28} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} stroke="#8b949e" width={28} />
                 <Tooltip
                   contentStyle={TOOLTIP_STYLE}
                   labelFormatter={(label) =>
@@ -180,7 +182,7 @@ export function SurveyInsightsDashboard({
                   type="monotone"
                   dataKey="count"
                   name="Responses"
-                  stroke="#2563eb"
+                  stroke="#FF6600"
                   fill="url(#responseFill)"
                   strokeWidth={2}
                 />
@@ -202,9 +204,9 @@ export function SurveyInsightsDashboard({
               data={insights.completionTimes}
               margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" />
-              <XAxis dataKey="label" tick={{ fontSize: 12 }} stroke="#a1a1aa" />
-              <YAxis tick={{ fontSize: 12 }} stroke="#a1a1aa" unit="s" width={36} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#30363d" />
+              <XAxis dataKey="label" tick={{ fontSize: 12 }} stroke="#8b949e" />
+              <YAxis tick={{ fontSize: 12 }} stroke="#8b949e" unit="s" width={36} />
               <Tooltip
                 contentStyle={TOOLTIP_STYLE}
                 formatter={(value) => [
@@ -212,7 +214,7 @@ export function SurveyInsightsDashboard({
                   "Duration",
                 ]}
               />
-              <Bar dataKey="seconds" name="Duration" fill="#0d9488" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="seconds" name="Duration" fill="#8b949e" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -220,8 +222,8 @@ export function SurveyInsightsDashboard({
 
       <section className="space-y-4">
         <div>
-          <h2 className="text-lg font-semibold text-zinc-900">Question insights</h2>
-          <p className="text-sm text-zinc-500">
+          <h2 className="text-lg font-semibold text-foreground">Question insights</h2>
+          <p className="text-sm text-muted-foreground">
             Answer distributions and time spent per screen
             {choicePieData > 0 ? " — charts below." : "."}
           </p>
@@ -240,14 +242,14 @@ export function SurveyInsightsDashboard({
 
       <section className="space-y-4">
         <div>
-          <h2 className="text-lg font-semibold text-zinc-900">Individual responses</h2>
-          <p className="text-sm text-zinc-500">
+          <h2 className="text-lg font-semibold text-foreground">Individual responses</h2>
+          <p className="text-sm text-muted-foreground">
             Expand a row to see each answer and time on question.
           </p>
         </div>
 
         {deleteError ? (
-          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p className="rounded-lg border border-negative/40 bg-negative-dim px-3 py-2 text-sm text-negative">
             {deleteError}
           </p>
         ) : null}
@@ -261,19 +263,19 @@ export function SurveyInsightsDashboard({
           {insights.submissions.map((submission) => (
             <details
               key={submission.id}
-              className="group rounded-xl border border-zinc-200 bg-white shadow-sm"
+              className="group rounded-xl border border-border bg-card shadow-sm"
             >
               <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-5 py-4 marker:content-none">
                 <div>
-                  <p className="font-medium text-zinc-900">
+                  <p className="font-medium text-foreground">
                     {new Date(submission.submittedAt).toLocaleString()}
                   </p>
-                  <p className="text-xs text-zinc-500">{submission.id}</p>
+                  <p className="text-xs text-muted-foreground">{submission.id}</p>
                 </div>
                 <div className="flex items-center gap-4 text-sm">
-                  <span className="text-zinc-500">
+                  <span className="text-muted-foreground">
                     Total:{" "}
-                    <span className="font-medium text-zinc-800">
+                    <span className="font-medium text-foreground">
                       {formatDuration(submission.totalDurationMs)}
                     </span>
                   </span>
@@ -286,18 +288,18 @@ export function SurveyInsightsDashboard({
                         void deleteSubmission(submission.id);
                       }}
                       disabled={deletingId === submission.id}
-                      className="rounded border border-red-200 px-2.5 py-1 text-xs font-medium text-red-700 transition hover:border-red-400 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="rounded border border-negative/40 px-2.5 py-1 text-xs font-medium text-negative transition hover:border-negative hover:bg-negative-dim disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {deletingId === submission.id ? "Deleting…" : "Delete"}
                     </button>
                   ) : null}
-                  <span className="text-zinc-400 transition group-open:rotate-180">
+                  <span className="text-fg-faint transition group-open:rotate-180">
                     ▾
                   </span>
                 </div>
               </summary>
 
-              <div className="border-t border-zinc-100 px-5 py-4">
+              <div className="border-t border-border px-5 py-4">
                 <SubmissionTimingBars submission={submission} />
                 <dl className="mt-4 space-y-4">
                   {submission.answers.map((answer) => (
@@ -306,17 +308,17 @@ export function SurveyInsightsDashboard({
                       className="grid gap-2 sm:grid-cols-[1fr_auto_auto]"
                     >
                       <div>
-                        <dt className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                        <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                           Q{answer.order}
                         </dt>
-                        <dd className="mt-0.5 text-sm font-medium text-zinc-900">
+                        <dd className="mt-0.5 text-sm font-medium text-foreground">
                           {answer.prompt}
                         </dd>
                       </div>
-                      <div className="text-sm text-zinc-700 sm:text-right">
+                      <div className="text-sm text-foreground sm:text-right">
                         {answer.valueLabel}
                       </div>
-                      <div className="text-sm text-zinc-500 sm:text-right sm:tabular-nums">
+                      <div className="text-sm text-muted-foreground sm:text-right sm:tabular-nums">
                         {formatDuration(answer.durationMs)}
                       </div>
                     </div>
@@ -341,9 +343,9 @@ function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <article className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-      <h3 className="text-sm font-semibold text-zinc-900">{title}</h3>
-      <p className="mt-0.5 text-xs text-zinc-500">{description}</p>
+    <article className="rounded-xl border border-border bg-card p-5 shadow-sm">
+      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+      <p className="mt-0.5 text-xs text-muted-foreground">{description}</p>
       <div className="mt-4">{children}</div>
     </article>
   );
@@ -351,7 +353,7 @@ function ChartCard({
 
 function EmptyChart({ message }: { message: string }) {
   return (
-    <div className="flex h-[280px] items-center justify-center rounded-lg border border-dashed border-zinc-200 bg-zinc-50 px-6 text-center text-sm text-zinc-500">
+    <div className="flex h-[280px] items-center justify-center rounded-lg border border-dashed border-border bg-muted px-6 text-center text-sm text-muted-foreground">
       {message}
     </div>
   );
@@ -376,24 +378,24 @@ function QuestionInsightCard({
   const isSingleChoice = question.type === "SINGLE_CHOICE";
 
   return (
-    <article className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
+    <article className="rounded-xl border border-border bg-card p-5 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Question {question.order} · {question.type.replaceAll("_", " ")}
           </p>
-          <h3 className="mt-1 text-base font-medium text-zinc-900">
+          <h3 className="mt-1 text-base font-medium text-foreground">
             {question.prompt}
           </h3>
-          <p className="mt-1 text-sm text-zinc-500">{question.summary}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{question.summary}</p>
         </div>
         <div className="text-right text-sm">
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Avg time</p>
-          <p className="font-semibold text-zinc-900">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Avg time</p>
+          <p className="font-semibold text-foreground">
             {formatDuration(timing?.avgMs ?? null)}
           </p>
           {timing && (
-            <p className="text-xs text-zinc-500">
+            <p className="text-xs text-muted-foreground">
               {formatDuration(timing.minMs)} – {formatDuration(timing.maxMs)}
             </p>
           )}
@@ -403,7 +405,7 @@ function QuestionInsightCard({
       <div className="mt-5 grid gap-6 lg:grid-cols-2">
         {hasChoiceData && (
           <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               {question.type === "POINT_ALLOCATION"
                 ? "Points allocated"
                 : "Answer distribution"}
@@ -436,13 +438,13 @@ function QuestionInsightCard({
                   layout="vertical"
                   margin={{ top: 0, right: 16, left: 0, bottom: 0 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" horizontal={false} />
-                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} stroke="#a1a1aa" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#30363d" horizontal={false} />
+                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} stroke="#8b949e" />
                   <YAxis
                     type="category"
                     dataKey="name"
                     tick={{ fontSize: 11 }}
-                    stroke="#a1a1aa"
+                    stroke="#8b949e"
                     width={100}
                   />
                   <Tooltip contentStyle={TOOLTIP_STYLE} />
@@ -458,7 +460,7 @@ function QuestionInsightCard({
               {question.choiceBuckets?.map((bucket) => (
                 <span
                   key={bucket.value}
-                  className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-600"
+                  className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
                 >
                   {question.type === "POINT_ALLOCATION" ? (
                     <>
@@ -482,7 +484,7 @@ function QuestionInsightCard({
         {question.numericDistribution &&
           question.numericDistribution.some((bucket) => bucket.count > 0) && (
             <div>
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Score distribution
               </p>
               <ResponsiveContainer width="100%" height={220}>
@@ -490,11 +492,11 @@ function QuestionInsightCard({
                   data={question.numericDistribution}
                   margin={{ top: 0, right: 8, left: 0, bottom: 0 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" />
-                  <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="#a1a1aa" />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="#a1a1aa" width={28} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#30363d" />
+                  <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="#8b949e" />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="#8b949e" width={28} />
                   <Tooltip contentStyle={TOOLTIP_STYLE} />
-                  <Bar dataKey="count" name="Responses" fill="#7c3aed" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="count" name="Responses" fill="#FF6600" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -502,7 +504,7 @@ function QuestionInsightCard({
 
         {timing && !hasChoiceData && !question.numericDistribution && (
           <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Time on question
             </p>
             <ResponsiveContainer width="100%" height={120}>
@@ -514,9 +516,9 @@ function QuestionInsightCard({
                 ]}
                 margin={{ top: 0, right: 8, left: 0, bottom: 0 }}
               >
-                <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" />
-                <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="#a1a1aa" />
-                <YAxis tick={{ fontSize: 11 }} stroke="#a1a1aa" unit="s" width={36} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#30363d" />
+                <XAxis dataKey="label" tick={{ fontSize: 11 }} stroke="#8b949e" />
+                <YAxis tick={{ fontSize: 11 }} stroke="#8b949e" unit="s" width={36} />
                 <Tooltip
                   contentStyle={TOOLTIP_STYLE}
                   formatter={(value) => [
@@ -524,7 +526,7 @@ function QuestionInsightCard({
                     "Time",
                   ]}
                 />
-                <Bar dataKey="seconds" fill="#18181b" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="seconds" fill="#FF6600" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -552,15 +554,15 @@ function TextResponsesList({
   const hiddenCount = responses.length - INITIAL_TEXT_RESPONSES;
 
   return (
-    <div className="mt-5 border-t border-zinc-100 pt-4">
+    <div className="mt-5 border-t border-border pt-4">
       <ul className="space-y-2">
         {visible.map((response, index) => (
           <li
             key={`${response.value}-${index}`}
-            className="flex flex-wrap items-start justify-between gap-2 rounded-lg bg-zinc-50 px-3 py-2 text-sm"
+            className="flex flex-wrap items-start justify-between gap-2 rounded-lg bg-muted px-3 py-2 text-sm"
           >
-            <span className="text-zinc-800">{response.value}</span>
-            <span className="text-zinc-500 tabular-nums">
+            <span className="text-foreground">{response.value}</span>
+            <span className="text-muted-foreground tabular-nums">
               {formatDuration(response.durationMs)}
             </span>
           </li>
@@ -570,7 +572,7 @@ function TextResponsesList({
         <button
           type="button"
           onClick={() => setExpanded((current) => !current)}
-          className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:border-zinc-400 hover:bg-zinc-50"
+          className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium text-foreground transition hover:border-muted-foreground hover:bg-muted"
           aria-expanded={expanded}
         >
           <span
@@ -618,11 +620,11 @@ function ResponseTimingHeatmap({
         <table className="w-full min-w-[480px] border-collapse text-xs">
           <thead>
             <tr>
-              <th className="pb-2 pr-2 text-left font-medium text-zinc-500">Response</th>
+              <th className="pb-2 pr-2 text-left font-medium text-muted-foreground">Response</th>
               {timedQuestions.map((question) => (
                 <th
                   key={question.questionId}
-                  className="px-1 pb-2 text-center font-medium text-zinc-500"
+                  className="px-1 pb-2 text-center font-medium text-muted-foreground"
                   title={question.prompt}
                 >
                   Q{question.order}
@@ -633,7 +635,7 @@ function ResponseTimingHeatmap({
           <tbody>
             {recentSubmissions.map((submission, rowIndex) => (
               <tr key={submission.id}>
-                <td className="py-1 pr-2 text-zinc-600">#{rowIndex + 1}</td>
+                <td className="py-1 pr-2 text-muted-foreground">#{rowIndex + 1}</td>
                 {timedQuestions.map((question) => {
                   const answer = submission.answers.find(
                     (item) => item.questionId === question.questionId,
@@ -645,8 +647,8 @@ function ResponseTimingHeatmap({
                       <div
                         className="flex h-8 items-center justify-center rounded-md text-[10px] font-medium tabular-nums"
                         style={{
-                          backgroundColor: `rgba(24, 24, 27, ${intensity})`,
-                          color: intensity > 0.55 ? "#fff" : "#52525b",
+                          backgroundColor: `rgba(255, 102, 0, ${intensity})`,
+                          color: intensity > 0.55 ? "#ffffff" : "#8b949e",
                         }}
                         title={`${formatDuration(ms)} on Q${question.order}`}
                       >
@@ -682,7 +684,7 @@ function SubmissionTimingBars({
 
   return (
     <div>
-      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-500">
+      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
         Time per question
       </p>
       <ResponsiveContainer width="100%" height={Math.max(120, data.length * 28)}>
@@ -691,9 +693,9 @@ function SubmissionTimingBars({
           layout="vertical"
           margin={{ top: 0, right: 16, left: 0, bottom: 0 }}
         >
-          <CartesianGrid strokeDasharray="3 3" stroke="#f4f4f5" horizontal={false} />
-          <XAxis type="number" tick={{ fontSize: 11 }} stroke="#a1a1aa" unit="s" />
-          <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} stroke="#a1a1aa" width={32} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#30363d" horizontal={false} />
+          <XAxis type="number" tick={{ fontSize: 11 }} stroke="#8b949e" unit="s" />
+          <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} stroke="#8b949e" width={32} />
           <Tooltip
             contentStyle={TOOLTIP_STYLE}
             formatter={(value) => [
@@ -701,7 +703,7 @@ function SubmissionTimingBars({
               "Time",
             ]}
           />
-          <Bar dataKey="seconds" fill="#2563eb" radius={[0, 4, 4, 0]} />
+          <Bar dataKey="seconds" fill="#FF6600" radius={[0, 4, 4, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

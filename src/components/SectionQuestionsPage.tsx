@@ -146,7 +146,7 @@ export function SectionQuestionsPage({
                 </span>
                 <div className="min-w-0 flex-1">
                   {hasError ? (
-                    <p className="mb-2 text-xs font-medium text-red-600">
+                    <p className="mb-2 text-xs font-medium text-negative">
                       Needs an answer
                     </p>
                   ) : null}

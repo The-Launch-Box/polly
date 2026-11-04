@@ -53,25 +53,25 @@ export default async function EditFormPage({ params }: EditFormPageProps) {
 
   return (
     <>
-      <header className="border-b border-zinc-200 bg-white">
+      <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
           <div>
-            <h1 className="text-xl font-semibold text-zinc-900">Edit survey</h1>
-            <p className="text-sm text-zinc-500">
+            <h1 className="text-xl font-semibold text-foreground">Edit survey</h1>
+            <p className="text-sm text-muted-foreground">
               Update questions and details for{" "}
-              <span className="font-medium text-zinc-700">{form.title}</span>.
+              <span className="font-medium text-foreground">{form.title}</span>.
             </p>
           </div>
           <div className="flex items-center gap-3">
             <Link
               href={`/admin/forms/${form.slug}/sharing`}
-              className="text-sm text-zinc-500 transition hover:text-zinc-800"
+              className="text-sm text-muted-foreground transition hover:text-foreground"
             >
               Sharing
             </Link>
             <Link
               href="/admin/forms"
-              className="text-sm text-zinc-500 transition hover:text-zinc-800"
+              className="text-sm text-muted-foreground transition hover:text-foreground"
             >
               All surveys
             </Link>

@@ -23,7 +23,7 @@ export function SurveyThemeProvider({
 
   return (
     <SurveyThemeContext.Provider value={theme}>
-      <div className="survey-theme min-h-full" style={themeCssVariables(theme)}>
+      <div className="survey-theme min-h-screen" style={themeCssVariables(theme)}>
         {children}
       </div>
     </SurveyThemeContext.Provider>

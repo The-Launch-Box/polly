@@ -61,22 +61,22 @@ export default async function FormSharingPage({ params }: PageProps) {
 
   return (
     <>
-      <header className="border-b border-zinc-200 bg-white">
+      <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
           <div>
-            <h1 className="text-xl font-semibold text-zinc-900">Sharing</h1>
-            <p className="text-sm text-zinc-500">
+            <h1 className="text-xl font-semibold text-foreground">Sharing</h1>
+            <p className="text-sm text-muted-foreground">
               {formMeta?.title ?? slug} · /q/{formMeta?.slug ?? slug}
             </p>
           </div>
           <div className="flex gap-3 text-sm">
             <Link
               href={`/admin/forms/${slug}/edit`}
-              className="text-zinc-500 hover:text-zinc-800"
+              className="text-muted-foreground hover:text-foreground"
             >
               Edit
             </Link>
-            <Link href="/admin/groups" className="text-zinc-500 hover:text-zinc-800">
+            <Link href="/admin/groups" className="text-muted-foreground hover:text-foreground">
               Groups
             </Link>
           </div>

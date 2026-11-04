@@ -68,7 +68,7 @@ export function PlatformUsersManager({
 
   return (
     <div className="space-y-4">
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-negative">{error}</p>}
 
       <div className="flex flex-wrap items-center gap-3">
         <input
@@ -76,16 +76,16 @@ export function PlatformUsersManager({
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search by name, email, or organization…"
-          className="min-w-[16rem] flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+          className="min-w-[16rem] flex-1 rounded-lg border border-border px-3 py-2 text-sm"
         />
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-muted-foreground">
           {filtered.length} of {initialUsers.length} users
         </p>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-zinc-100 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
+          <thead className="border-b border-border bg-muted text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
               <th className="px-4 py-3 font-medium">User</th>
               <th className="px-4 py-3 font-medium">Organizations</th>
@@ -101,27 +101,27 @@ export function PlatformUsersManager({
                 user.id !== currentUserId;
 
               return (
-                <tr key={user.id} className="border-b border-zinc-50 align-top">
+                <tr key={user.id} className="border-b border-border align-top">
                   <td className="px-4 py-3">
-                    <p className="font-medium text-zinc-900">
+                    <p className="font-medium text-foreground">
                       {user.name ?? user.email}
                       {user.id === currentUserId && (
-                        <span className="ml-2 text-xs font-normal text-zinc-400">
+                        <span className="ml-2 text-xs font-normal text-fg-faint">
                           (you)
                         </span>
                       )}
                     </p>
-                    <p className="text-zinc-500">{user.email}</p>
+                    <p className="text-muted-foreground">{user.email}</p>
                   </td>
-                  <td className="px-4 py-3 text-zinc-600">
+                  <td className="px-4 py-3 text-muted-foreground">
                     {user.organizations.length === 0 ? (
-                      <span className="text-zinc-400">No memberships</span>
+                      <span className="text-fg-faint">No memberships</span>
                     ) : (
                       <ul className="space-y-1">
                         {user.organizations.map((org) => (
                           <li key={org.id}>
                             {org.name}{" "}
-                            <span className="text-zinc-400">
+                            <span className="text-fg-faint">
                               ({org.role.toLowerCase()})
                             </span>
                           </li>
@@ -132,7 +132,7 @@ export function PlatformUsersManager({
                   <td className="px-4 py-3">
                     {isSuperadmin ? (
                       <div className="flex flex-col items-start gap-1">
-                        <span className="text-xs font-medium uppercase tracking-wide text-zinc-700">
+                        <span className="text-xs font-medium uppercase tracking-wide text-foreground">
                           Superadmin
                           {user.isBootstrap ? " · bootstrap" : ""}
                         </span>
@@ -141,13 +141,13 @@ export function PlatformUsersManager({
                             type="button"
                             disabled={pending}
                             onClick={() => setSuperadmin(user.id, false)}
-                            className="text-xs text-red-600 hover:underline disabled:opacity-60"
+                            className="text-xs text-negative hover:underline disabled:opacity-60"
                           >
                             Remove
                           </button>
                         )}
                         {user.isBootstrap && (
-                          <span className="text-xs text-zinc-400">
+                          <span className="text-xs text-fg-faint">
                             Set via PLATFORM_SUPERADMIN_EMAILS
                           </span>
                         )}
@@ -157,7 +157,7 @@ export function PlatformUsersManager({
                         type="button"
                         disabled={pending}
                         onClick={() => setSuperadmin(user.id, true)}
-                        className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-60"
+                        className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-60"
                       >
                         Make superadmin
                       </button>
@@ -170,7 +170,7 @@ export function PlatformUsersManager({
               <tr>
                 <td
                   colSpan={3}
-                  className="px-4 py-8 text-center text-sm text-zinc-500"
+                  className="px-4 py-8 text-center text-sm text-muted-foreground"
                 >
                   No users match that search.
                 </td>
@@ -180,12 +180,12 @@ export function PlatformUsersManager({
         </table>
       </div>
 
-      <div className="rounded-xl border border-zinc-200 bg-white p-4 text-sm text-zinc-600">
-        <p className="font-medium text-zinc-800">Platform SUPERADMIN</p>
+      <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
+        <p className="font-medium text-foreground">Platform SUPERADMIN</p>
         <ul className="mt-2 list-disc space-y-1 pl-5">
           <li>
             Bootstrap accounts in{" "}
-            <code className="rounded bg-zinc-100 px-1 text-xs">
+            <code className="rounded bg-muted px-1 text-xs">
               PLATFORM_SUPERADMIN_EMAILS
             </code>{" "}
             always stay superadmin and cannot be demoted here.

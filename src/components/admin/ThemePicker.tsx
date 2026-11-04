@@ -1,5 +1,6 @@
 "use client";
 
+import { LaunchBoxWordmark } from "@/components/LaunchBoxWordmark";
 import {
   COMPANY_THEMES,
   getCompanyTheme,
@@ -16,17 +17,17 @@ export function ThemePicker({ value, onChange, error }: ThemePickerProps) {
   return (
     <div>
       <label className="block">
-        <span className="text-sm font-medium text-zinc-800">
+        <span className="text-sm font-medium text-foreground">
           Company theme template
         </span>
-        <p className="mt-1 text-xs text-zinc-500">
+        <p className="mt-1 text-xs text-muted-foreground">
           Applies brand colors, typography, and logo to the live survey.
         </p>
         <select
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className={`mt-2 w-full rounded-lg border bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition focus:border-zinc-900 ${
-            error ? "border-red-300" : "border-zinc-300"
+          className={`mt-2 w-full rounded-lg border bg-input px-3 py-2 text-sm text-foreground outline-none transition focus:border-ring ${
+            error ? "border-negative" : "border-border"
           }`}
         >
           {COMPANY_THEMES.map((theme) => (
@@ -36,7 +37,7 @@ export function ThemePicker({ value, onChange, error }: ThemePickerProps) {
           ))}
         </select>
       </label>
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+      {error && <p className="mt-1 text-xs text-negative">{error}</p>}
 
       <ThemePreview theme={getCompanyTheme(value)} />
     </div>
@@ -46,7 +47,7 @@ export function ThemePicker({ value, onChange, error }: ThemePickerProps) {
 function ThemePreview({ theme }: { theme: CompanyTheme }) {
   return (
     <div
-      className="mt-4 overflow-hidden rounded-xl border border-zinc-200"
+      className="mt-4 overflow-hidden rounded-xl border border-border"
       style={{
         backgroundColor: theme.colors.background,
         fontFamily: theme.fontFamily,
@@ -57,6 +58,7 @@ function ThemePreview({ theme }: { theme: CompanyTheme }) {
         style={{
           borderColor: theme.colors.border,
           backgroundColor: theme.colors.surface,
+          color: theme.colors.text,
         }}
       >
         {theme.logoSrc ? (
@@ -68,12 +70,7 @@ function ThemePreview({ theme }: { theme: CompanyTheme }) {
             style={{ maxHeight: theme.logoHeight, maxWidth: 140 }}
           />
         ) : (
-          <span
-            className="text-xs font-medium uppercase tracking-wide"
-            style={{ color: theme.colors.textMuted }}
-          >
-            No logo
-          </span>
+          <LaunchBoxWordmark linked={false} />
         )}
         <span
           className="text-sm font-semibold"

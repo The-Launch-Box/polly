@@ -707,7 +707,7 @@ export function FormPlayer({ form }: FormPlayerProps) {
         </div>
 
         {error && (
-          <p className="mt-4 text-sm text-red-600" role="alert">
+          <p className="mt-4 text-sm text-negative" role="alert">
             {error}
           </p>
         )}

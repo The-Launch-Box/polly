@@ -193,22 +193,22 @@ export function WebhookSection({ formSlug, initialWebhooks }: WebhookSectionProp
     <section className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-zinc-900">Webhooks</h2>
-          <p className="text-sm text-zinc-500">
+          <h2 className="text-lg font-semibold text-foreground">Webhooks</h2>
+          <p className="text-sm text-muted-foreground">
             Receive a POST request when a new response is submitted.
           </p>
         </div>
         <button
           type="button"
           onClick={addWebhook}
-          className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-800 transition hover:border-zinc-500"
+          className="rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition hover:border-muted-foreground"
         >
           Add webhook
         </button>
       </div>
 
       {webhooks.length === 0 && (
-        <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-6 text-center text-sm text-zinc-500">
+        <div className="rounded-xl border border-dashed border-border bg-muted px-4 py-6 text-center text-sm text-muted-foreground">
           No webhooks configured. Add one to receive notifications when responses
           come in.
         </div>
@@ -247,16 +247,16 @@ function WebhookEditor({
   onGenerateSecret: () => void;
 }) {
   return (
-    <article className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
+    <article className="rounded-xl border border-border bg-card p-5 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {webhook.id ? "Webhook" : "New webhook"}
         </p>
         <button
           type="button"
           onClick={onDelete}
           disabled={webhook.isSaving}
-          className="rounded border border-zinc-200 px-2 py-1 text-xs text-zinc-600 transition hover:border-zinc-400 disabled:opacity-40"
+          className="rounded border border-border px-2 py-1 text-xs text-muted-foreground transition hover:border-muted-foreground disabled:opacity-40"
         >
           Delete
         </button>
@@ -295,21 +295,21 @@ function WebhookEditor({
       </div>
 
       <div className="mt-4">
-        <label className="flex items-center gap-3 text-sm text-zinc-700">
+        <label className="flex items-center gap-3 text-sm text-foreground">
           <input
             type="checkbox"
             checked={webhook.includeAnswers}
             onChange={(e) => onUpdate({ includeAnswers: e.target.checked })}
-            className="h-4 w-4 rounded border-zinc-300"
+            className="h-4 w-4 rounded border-border"
           />
           Include form answers in payload
         </label>
-        <p className="mt-1 text-xs text-zinc-500">
+        <p className="mt-1 text-xs text-muted-foreground">
           Answers are only included for HTTPS endpoints.
         </p>
       </div>
 
-      <div className="mt-4 border-t border-zinc-100 pt-4">
+      <div className="mt-4 border-t border-border pt-4">
         <Field
           label="Secret"
           htmlFor={`webhook-secret-${webhook.key}`}
@@ -321,22 +321,22 @@ function WebhookEditor({
               type={webhook.secretVisible ? "text" : "password"}
               value={webhook.secret}
               onChange={(e) => onUpdate({ secret: e.target.value })}
-              className={`flex-1 rounded-lg border bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-900 ${
-                webhook.fieldErrors.secret ? "border-red-300" : "border-zinc-300"
+              className={`flex-1 rounded-lg border bg-input px-3 py-2 text-sm text-foreground outline-none transition placeholder:text-fg-faint focus:border-ring ${
+                webhook.fieldErrors.secret ? "border-negative" : "border-border"
               }`}
               placeholder="Optional"
             />
             <button
               type="button"
               onClick={() => onUpdate({ secretVisible: !webhook.secretVisible })}
-              className="shrink-0 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs font-medium text-zinc-600 transition hover:border-zinc-500"
+              className="shrink-0 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground transition hover:border-muted-foreground"
             >
               {webhook.secretVisible ? "Hide" : "Show"}
             </button>
             <button
               type="button"
               onClick={onGenerateSecret}
-              className="shrink-0 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs font-medium text-zinc-600 transition hover:border-zinc-500"
+              className="shrink-0 rounded-lg border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground transition hover:border-muted-foreground"
             >
               Generate
             </button>
@@ -345,7 +345,7 @@ function WebhookEditor({
       </div>
 
       {webhook.error && (
-        <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
+        <p className="mt-3 rounded-lg border border-negative/40 bg-negative-dim px-4 py-2 text-sm text-negative">
           {webhook.error}
         </p>
       )}
@@ -355,7 +355,7 @@ function WebhookEditor({
           type="button"
           disabled={webhook.isSaving}
           onClick={onSave}
-          className="rounded-xl bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-60"
         >
           {webhook.isSaving
             ? webhook.id
@@ -387,19 +387,19 @@ function Field({
 }) {
   return (
     <label className="block" htmlFor={htmlFor}>
-      <span className="text-sm font-medium text-zinc-800">
+      <span className="text-sm font-medium text-foreground">
         {label}
-        {required && <span className="text-red-600"> *</span>}
+        {required && <span className="text-negative"> *</span>}
       </span>
       <div className="mt-1.5">{children}</div>
-      {hint && !error && <p className="mt-1 text-xs text-zinc-500">{hint}</p>}
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+      {hint && !error && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
+      {error && <p className="mt-1 text-xs text-negative">{error}</p>}
     </label>
   );
 }
 
 function inputClass(error?: string) {
-  return `w-full rounded-lg border bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-900 ${
-    error ? "border-red-300" : "border-zinc-300"
+  return `w-full rounded-lg border bg-input px-3 py-2 text-sm text-foreground outline-none transition placeholder:text-fg-faint focus:border-ring ${
+    error ? "border-negative" : "border-border"
   }`;
 }

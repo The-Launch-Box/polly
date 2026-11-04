@@ -530,10 +530,10 @@ export function FormBuilder({
     <form onSubmit={handleSubmit} className="space-y-8">
       <section className="space-y-4">
         <div>
-          <h2 className="text-lg font-semibold text-zinc-900">Survey details</h2>
-          <p className="mt-1 text-sm text-zinc-500">
+          <h2 className="text-lg font-semibold text-foreground">Survey details</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
             Respondents will take the survey at{" "}
-            <code className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-700">
+            <code className="rounded bg-muted px-1.5 py-0.5 text-xs text-foreground">
               {previewUrl}
             </code>
           </p>
@@ -546,7 +546,7 @@ export function FormBuilder({
           )}
         </div>
 
-        <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
+        <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
           <div className="space-y-4">
           <Field
             label="Title"
@@ -575,7 +575,7 @@ export function FormBuilder({
             }
           >
             <div className="flex items-center gap-2">
-              <span className="text-sm text-zinc-500">/q/</span>
+              <span className="text-sm text-muted-foreground">/q/</span>
               <input
                 id="slug"
                 value={slug}
@@ -584,7 +584,7 @@ export function FormBuilder({
                   setSlug(event.target.value);
                 }}
                 disabled={isEdit}
-                className={`${inputClass(fieldErrors.slug)} disabled:cursor-not-allowed disabled:bg-zinc-50 disabled:text-zinc-500`}
+                className={`${inputClass(fieldErrors.slug)} disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground`}
                 placeholder="offsite-feedback"
               />
             </div>
@@ -618,13 +618,13 @@ export function FormBuilder({
             htmlFor="anonymous"
             hint="When enabled, no timing metadata or NPS contact details are stored. IP addresses, device info, and location are never recorded."
           >
-            <label className="flex items-center gap-3 text-sm text-zinc-700">
+            <label className="flex items-center gap-3 text-sm text-foreground">
               <input
                 id="anonymous"
                 type="checkbox"
                 checked={anonymous}
                 onChange={(event) => setAnonymous(event.target.checked)}
-                className="h-4 w-4 rounded border-zinc-300"
+                className="h-4 w-4 rounded border-border"
               />
               Keep respondent identity private
             </label>
@@ -636,8 +636,8 @@ export function FormBuilder({
       <section className="space-y-4">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold text-zinc-900">Questions</h2>
-            <p className="text-sm text-zinc-500">
+            <h2 className="text-lg font-semibold text-foreground">Questions</h2>
+            <p className="text-sm text-muted-foreground">
               Group questions into titled sections. Each section shows all of
               its questions on one scrollable page.
             </p>
@@ -648,14 +648,14 @@ export function FormBuilder({
                 <button
                   type="button"
                   onClick={collapseAll}
-                  className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-800 transition hover:border-zinc-500"
+                  className="rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition hover:border-muted-foreground"
                 >
                   Collapse all
                 </button>
                 <button
                   type="button"
                   onClick={expandAll}
-                  className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-800 transition hover:border-zinc-500"
+                  className="rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition hover:border-muted-foreground"
                 >
                   Expand all
                 </button>
@@ -664,7 +664,7 @@ export function FormBuilder({
             <button
               type="button"
               onClick={addSection}
-              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-800 transition hover:border-zinc-500"
+              className="rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition hover:border-muted-foreground"
             >
               + Add section
             </button>
@@ -672,7 +672,7 @@ export function FormBuilder({
         </div>
 
         {fieldErrors.questions && (
-          <p className="text-sm text-red-600">{fieldErrors.questions}</p>
+          <p className="text-sm text-negative">{fieldErrors.questions}</p>
         )}
 
         {builderGroups.map((group, groupIndex) => (
@@ -693,9 +693,9 @@ export function FormBuilder({
                 onMove={(direction) => moveQuestion(group.section.key, direction)}
               />
             ) : (
-              <div className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50 px-4 py-3">
-                <p className="text-sm font-medium text-zinc-700">Ungrouped questions</p>
-                <p className="mt-0.5 text-xs text-zinc-500">
+              <div className="rounded-lg border border-dashed border-border bg-muted px-4 py-3">
+                <p className="text-sm font-medium text-foreground">Ungrouped questions</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
                   Add a section above these, or leave them at the start of the survey.
                 </p>
               </div>
@@ -739,7 +739,7 @@ export function FormBuilder({
             <button
               type="button"
               onClick={() => addQuestionToGroup(group)}
-              className="flex w-full items-center justify-center rounded-lg border border-dashed border-zinc-300 py-3 text-sm font-medium text-zinc-500 transition hover:border-zinc-500 hover:text-zinc-700"
+              className="flex w-full items-center justify-center rounded-lg border border-dashed border-border py-3 text-sm font-medium text-muted-foreground transition hover:border-muted-foreground hover:text-foreground"
             >
               + Add question
             </button>
@@ -749,7 +749,7 @@ export function FormBuilder({
         <button
           type="button"
           onClick={addSection}
-          className="flex w-full items-center justify-center rounded-lg border border-dashed border-zinc-300 py-3 text-sm font-medium text-zinc-500 transition hover:border-zinc-500 hover:text-zinc-700"
+          className="flex w-full items-center justify-center rounded-lg border border-dashed border-border py-3 text-sm font-medium text-muted-foreground transition hover:border-muted-foreground hover:text-foreground"
         >
           + Add section
         </button>
@@ -763,7 +763,7 @@ export function FormBuilder({
       )}
 
       {error && (
-        <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <p className="rounded-lg border border-negative/40 bg-negative-dim px-4 py-3 text-sm text-negative">
           {error}
         </p>
       )}
@@ -772,7 +772,7 @@ export function FormBuilder({
         <button
           type="submit"
           disabled={isSubmitting || isDeleting}
-          className="rounded-xl bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isSubmitting
             ? isEdit
@@ -782,7 +782,7 @@ export function FormBuilder({
               ? "Save changes"
               : "Create survey"}
         </button>
-        <p className="text-sm text-zinc-500">
+        <p className="text-sm text-muted-foreground">
           {isEdit
             ? "Changes apply immediately to the live survey."
             : "You'll be taken to the live survey when it's ready."}
@@ -790,12 +790,12 @@ export function FormBuilder({
       </div>
 
       {isEdit && (
-        <div className="border-t border-zinc-200 pt-6">
+        <div className="border-t border-border pt-6">
           <button
             type="button"
             disabled={isSubmitting || isDeleting}
             onClick={handleDelete}
-            className="text-sm text-red-600 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+            className="text-sm text-negative hover:underline disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isDeleting ? "Deleting…" : "Delete survey"}
           </button>
@@ -805,7 +805,7 @@ export function FormBuilder({
         <button
           type="button"
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          className="fixed bottom-6 right-6 flex h-10 w-10 items-center justify-center rounded-full bg-zinc-900 text-white shadow-lg transition hover:bg-zinc-700"
+          className="fixed bottom-6 right-6 flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition hover:bg-accent-soft"
           aria-label="Scroll to top"
         >
           ↑
@@ -849,10 +849,10 @@ function SectionEditor({
   const description = options.description ?? "";
 
   return (
-    <article className="rounded-xl border border-zinc-300 bg-zinc-50 shadow-sm">
+    <article className="rounded-xl border border-border bg-muted shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3 p-5">
         <div className="min-w-0 flex-1 space-y-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Section
           </p>
           <Field
@@ -896,7 +896,7 @@ function SectionEditor({
             type="button"
             onClick={() => onMove(-1)}
             disabled={!canMoveUp}
-            className="rounded border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-600 disabled:opacity-40"
+            className="rounded border border-border bg-card px-2 py-1 text-xs text-muted-foreground disabled:opacity-40"
             aria-label="Move section up"
           >
             ↑
@@ -905,7 +905,7 @@ function SectionEditor({
             type="button"
             onClick={() => onMove(1)}
             disabled={!canMoveDown}
-            className="rounded border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-600 disabled:opacity-40"
+            className="rounded border border-border bg-card px-2 py-1 text-xs text-muted-foreground disabled:opacity-40"
             aria-label="Move section down"
           >
             ↓
@@ -913,7 +913,7 @@ function SectionEditor({
           <button
             type="button"
             onClick={onRemove}
-            className="rounded border border-zinc-200 bg-white px-2 py-1 text-xs text-zinc-600"
+            className="rounded border border-border bg-card px-2 py-1 text-xs text-muted-foreground"
           >
             Remove
           </button>
@@ -966,27 +966,27 @@ function QuestionEditor({
   const collapsedWithError = collapsed && hasError;
 
   return (
-    <article className={`rounded-xl border bg-white shadow-sm ${collapsedWithError ? "border-red-300" : "border-zinc-200"}`}>
-      <div className={`flex flex-wrap items-center justify-between gap-3 p-5 ${collapsedWithError ? "rounded-xl bg-red-50" : ""}`}>
+    <article className={`rounded-xl border bg-card shadow-sm ${collapsedWithError ? "border-negative" : "border-border"}`}>
+      <div className={`flex flex-wrap items-center justify-between gap-3 p-5 ${collapsedWithError ? "rounded-xl bg-negative-dim" : ""}`}>
         <button
           type="button"
           onClick={onToggleCollapse}
           className="flex min-w-0 flex-1 items-center gap-3 text-left"
           aria-expanded={!collapsed}
         >
-          <span className="shrink-0 text-xs font-medium uppercase tracking-wide text-zinc-400">
+          <span className="shrink-0 text-xs font-medium uppercase tracking-wide text-fg-faint">
             {isTitleCard ? "Title" : `Q${displayNumber}`}
           </span>
-          <span className="shrink-0 rounded bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">
+          <span className="shrink-0 rounded bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
             {QUESTION_TYPE_LABELS[question.type]}
           </span>
           {collapsed && (
-            <span className="truncate text-sm text-zinc-700">
+            <span className="truncate text-sm text-foreground">
               {promptSummary}
             </span>
           )}
           <span
-            className={`ml-auto shrink-0 text-xs text-zinc-400 transition-transform duration-350 ease-[cubic-bezier(0.22,1,0.36,1)] ${collapsed ? "" : "rotate-90"}`}
+            className={`ml-auto shrink-0 text-xs text-fg-faint transition-transform duration-350 ease-[cubic-bezier(0.22,1,0.36,1)] ${collapsed ? "" : "rotate-90"}`}
           >
             ▶
           </span>
@@ -996,7 +996,7 @@ function QuestionEditor({
             type="button"
             onClick={() => onMove(-1)}
             disabled={index === 0}
-            className="rounded border border-zinc-200 px-2 py-1 text-xs text-zinc-600 disabled:opacity-40"
+            className="rounded border border-border px-2 py-1 text-xs text-muted-foreground disabled:opacity-40"
             aria-label="Move up"
           >
             ↑
@@ -1005,7 +1005,7 @@ function QuestionEditor({
             type="button"
             onClick={() => onMove(1)}
             disabled={index === total - 1}
-            className="rounded border border-zinc-200 px-2 py-1 text-xs text-zinc-600 disabled:opacity-40"
+            className="rounded border border-border px-2 py-1 text-xs text-muted-foreground disabled:opacity-40"
             aria-label="Move down"
           >
             ↓
@@ -1014,7 +1014,7 @@ function QuestionEditor({
             type="button"
             onClick={onRemove}
             disabled={!canRemove}
-            className="rounded border border-zinc-200 px-2 py-1 text-xs text-zinc-600 disabled:opacity-40"
+            className="rounded border border-border px-2 py-1 text-xs text-muted-foreground disabled:opacity-40"
           >
             Remove
           </button>
@@ -1023,7 +1023,7 @@ function QuestionEditor({
 
       <div className={`question-body-grid${collapsed ? " collapsed" : ""}`}>
         <div>
-        <div className="border-t border-zinc-100 px-5 pb-5 pt-4">
+        <div className="border-t border-border px-5 pb-5 pt-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Type" htmlFor={`type-${question.key}`}>
           <select
@@ -1044,7 +1044,7 @@ function QuestionEditor({
 
         {!isTitleCard ? (
           <Field label="Required" htmlFor={`required-${question.key}`}>
-            <label className="flex h-10 items-center gap-2 text-sm text-zinc-700">
+            <label className="flex h-10 items-center gap-2 text-sm text-foreground">
               <input
                 id={`required-${question.key}`}
                 type="checkbox"
@@ -1052,13 +1052,13 @@ function QuestionEditor({
                 onChange={(event) =>
                   onChange({ required: event.target.checked })
                 }
-                className="h-4 w-4 rounded border-zinc-300"
+                className="h-4 w-4 rounded border-border"
               />
               Respondents must answer this question
             </label>
           </Field>
         ) : (
-          <div className="flex h-10 items-center text-sm text-zinc-500">
+          <div className="flex h-10 items-center text-sm text-muted-foreground">
             Title cards do not collect a response
           </div>
         )}
@@ -1085,7 +1085,7 @@ function QuestionEditor({
         </Field>
       </div>
 
-      <div className="mt-4 border-t border-zinc-100 pt-4">
+      <div className="mt-4 border-t border-border pt-4">
         <QuestionOptionsEditor
           type={question.type}
           options={question.options}
@@ -1093,11 +1093,11 @@ function QuestionEditor({
           onChange={(options) => onChange({ options })}
         />
         {optionsError && (
-          <p className="mt-2 text-sm text-red-600">{optionsError}</p>
+          <p className="mt-2 text-sm text-negative">{optionsError}</p>
         )}
       </div>
 
-      <div className="mt-4 border-t border-zinc-100 pt-4">
+      <div className="mt-4 border-t border-border pt-4">
         <BranchingEditor
           visibility={question.visibility ?? null}
           precedingQuestions={precedingQuestions}
@@ -1128,8 +1128,8 @@ function BranchingEditor({
   if (precedingQuestions.length === 0) {
     return (
       <div>
-        <p className="text-sm font-medium text-zinc-800">Branching</p>
-        <p className="mt-1 text-xs text-zinc-500">
+        <p className="text-sm font-medium text-foreground">Branching</p>
+        <p className="mt-1 text-xs text-muted-foreground">
           The first question is always shown. Add more questions above this one
           to make it appear only for certain answers.
         </p>
@@ -1210,8 +1210,8 @@ function BranchingEditor({
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="text-sm font-medium text-zinc-800">Branching</p>
-          <p className="mt-0.5 text-xs text-zinc-500">
+          <p className="text-sm font-medium text-foreground">Branching</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
             Only show this question when earlier answers match.
           </p>
         </div>
@@ -1219,7 +1219,7 @@ function BranchingEditor({
           <button
             type="button"
             onClick={addCondition}
-            className="rounded border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-800 transition hover:border-zinc-500"
+            className="rounded border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition hover:border-muted-foreground"
           >
             Add rule
           </button>
@@ -1227,16 +1227,16 @@ function BranchingEditor({
       </div>
 
       {conditions.length > 0 && (
-        <div className="space-y-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+        <div className="space-y-3 rounded-lg border border-border bg-muted p-3">
           {conditions.length > 1 && (
-            <label className="flex items-center gap-2 text-xs text-zinc-600">
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
               Show this question when
               <select
                 value={match}
                 onChange={(event) =>
                   emit(conditions, event.target.value === "any" ? "any" : "all")
                 }
-                className="rounded border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900"
+                className="rounded border border-border bg-card px-2 py-1 text-xs text-foreground"
               >
                 <option value="all">all</option>
                 <option value="any">any</option>
@@ -1338,7 +1338,7 @@ function BranchingEditor({
                 <button
                   type="button"
                   onClick={() => removeCondition(index)}
-                  className="rounded border border-zinc-200 px-3 py-2 text-xs text-zinc-600 hover:border-zinc-400"
+                  className="rounded border border-border px-3 py-2 text-xs text-muted-foreground hover:border-muted-foreground"
                 >
                   Remove
                 </button>
@@ -1349,14 +1349,14 @@ function BranchingEditor({
           <button
             type="button"
             onClick={addCondition}
-            className="text-sm font-medium text-zinc-700 underline-offset-2 hover:underline"
+            className="text-sm font-medium text-foreground underline-offset-2 hover:underline"
           >
             Add condition
           </button>
         </div>
       )}
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-negative">{error}</p>}
     </div>
   );
 }
@@ -1468,7 +1468,7 @@ function QuestionOptionsEditor({
                 });
               }}
               disabled={choice.choices.length <= 2}
-              className="rounded border border-zinc-200 px-3 py-2 text-xs text-zinc-600 disabled:opacity-40"
+              className="rounded border border-border px-3 py-2 text-xs text-muted-foreground disabled:opacity-40"
             >
               Remove
             </button>
@@ -1487,12 +1487,12 @@ function QuestionOptionsEditor({
               ],
             })
           }
-          className="text-sm font-medium text-zinc-700 underline-offset-2 hover:underline"
+          className="text-sm font-medium text-foreground underline-offset-2 hover:underline"
         >
           Add choice
         </button>
         {type === "MULTIPLE_CHOICE" && (
-          <div className="grid gap-4 border-t border-zinc-100 pt-4 sm:grid-cols-2">
+          <div className="grid gap-4 border-t border-border pt-4 sm:grid-cols-2">
             <Field label="Min selections" htmlFor="multi-min">
               <input
                 id="multi-min"
@@ -1662,7 +1662,7 @@ function QuestionOptionsEditor({
               return (
                 <label
                   key={kind}
-                  className="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-700"
+                  className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-foreground"
                 >
                   <input
                     type="checkbox"
@@ -1676,7 +1676,7 @@ function QuestionOptionsEditor({
                         allowedKinds: next,
                       });
                     }}
-                    className="h-4 w-4 rounded border-zinc-300"
+                    className="h-4 w-4 rounded border-border"
                   />
                   {ATTACHMENT_KIND_LABELS[kind]}
                 </label>
@@ -1762,7 +1762,7 @@ function QuestionOptionsEditor({
                 return (
                   <label
                     key={field}
-                    className={`flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-700 ${anonymous ? "opacity-50" : ""}`}
+                    className={`flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-foreground ${anonymous ? "opacity-50" : ""}`}
                   >
                     <input
                       type="checkbox"
@@ -1774,7 +1774,7 @@ function QuestionOptionsEditor({
                           : contactFields.filter((item) => item !== field);
                         onChange({ ...nps, contactFields: next });
                       }}
-                      className="h-4 w-4 rounded border-zinc-300"
+                      className="h-4 w-4 rounded border-border"
                     />
                     {NPS_CONTACT_FIELD_LABELS[field]}
                   </label>
@@ -1796,11 +1796,11 @@ function QuestionOptionsEditor({
           />
         </Field>
 
-        <div className="rounded-xl border border-zinc-200 p-4">
-          <h4 className="text-sm font-semibold text-zinc-900">
+        <div className="rounded-xl border border-border p-4">
+          <h4 className="text-sm font-semibold text-foreground">
             Closing slide (scores 0–9)
           </h4>
-          <p className="mt-1 text-sm text-zinc-500">
+          <p className="mt-1 text-sm text-muted-foreground">
             Shown after follow-up feedback is submitted.
           </p>
           <div className="mt-4 grid gap-4">
@@ -1838,7 +1838,7 @@ function QuestionOptionsEditor({
               />
             </Field>
             <div className="space-y-3">
-              <p className="text-sm font-medium text-zinc-700">Links</p>
+              <p className="text-sm font-medium text-foreground">Links</p>
               {closingLinks.map((link, index) => (
                 <div key={index} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
                   <input
@@ -1867,7 +1867,7 @@ function QuestionOptionsEditor({
                       const next = closingLinks.filter((_, i) => i !== index);
                       onChange({ ...nps, closingLinks: next });
                     }}
-                    className="rounded border border-zinc-200 px-3 py-2 text-sm text-zinc-600"
+                    className="rounded border border-border px-3 py-2 text-sm text-muted-foreground"
                   >
                     Remove
                   </button>
@@ -1882,7 +1882,7 @@ function QuestionOptionsEditor({
                   ];
                   onChange({ ...nps, closingLinks: next });
                 }}
-                className="text-sm font-medium text-zinc-700 underline"
+                className="text-sm font-medium text-foreground underline"
               >
                 Add link
               </button>
@@ -1918,8 +1918,8 @@ function QuestionOptionsEditor({
         </Field>
 
         <div className="space-y-3">
-          <p className="text-sm font-medium text-zinc-700">Social links</p>
-          <p className="text-xs text-zinc-500">
+          <p className="text-sm font-medium text-foreground">Social links</p>
+          <p className="text-xs text-muted-foreground">
             Add buttons that open LinkedIn, X/Twitter, or any other URL.
           </p>
           {links.map((link, index) => (
@@ -1950,7 +1950,7 @@ function QuestionOptionsEditor({
                   const next = links.filter((_, i) => i !== index);
                   onChange({ ...titleCard, links: next });
                 }}
-                className="rounded border border-zinc-200 px-3 py-2 text-sm text-zinc-600"
+                className="rounded border border-border px-3 py-2 text-sm text-muted-foreground"
               >
                 Remove
               </button>
@@ -1962,7 +1962,7 @@ function QuestionOptionsEditor({
               const next: NpsLink[] = [...links, { label: "", url: "" }];
               onChange({ ...titleCard, links: next });
             }}
-            className="text-sm font-medium text-zinc-700 underline"
+            className="text-sm font-medium text-foreground underline"
           >
             Add link
           </button>
@@ -1977,8 +1977,8 @@ function QuestionOptionsEditor({
     const companies = contactInfo.companies ?? [];
     return (
       <div className="space-y-4">
-        <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
-          <p className="font-medium text-zinc-800">Fields included</p>
+        <div className="rounded-lg border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
+          <p className="font-medium text-foreground">Fields included</p>
           <ul className="mt-2 list-inside list-disc space-y-1">
             <li>First and last name</li>
             <li>Company email</li>
@@ -1993,7 +1993,7 @@ function QuestionOptionsEditor({
         </div>
         <Field label="Business name mode" htmlFor="contact-info-company-mode">
           <div className="flex gap-4">
-            <label className="flex items-center gap-2 text-sm text-zinc-700">
+            <label className="flex items-center gap-2 text-sm text-foreground">
               <input
                 type="radio"
                 name="contact-info-company-mode"
@@ -2003,7 +2003,7 @@ function QuestionOptionsEditor({
               />
               Free text
             </label>
-            <label className="flex items-center gap-2 text-sm text-zinc-700">
+            <label className="flex items-center gap-2 text-sm text-foreground">
               <input
                 type="radio"
                 name="contact-info-company-mode"
@@ -2035,17 +2035,17 @@ function QuestionOptionsEditor({
                     const next = companies.filter((_, i) => i !== index);
                     onChange({ ...contactInfo, companies: next });
                   }}
-                  className="shrink-0 text-sm font-medium text-zinc-500 hover:text-zinc-800"
+                  className="shrink-0 text-sm font-medium text-muted-foreground hover:text-foreground"
                 >
                   Remove
                 </button>
               </div>
             ))}
-            <p className="text-xs text-zinc-500">&quot;Other&quot; is always included automatically.</p>
+            <p className="text-xs text-muted-foreground">&quot;Other&quot; is always included automatically.</p>
             <button
               type="button"
               onClick={() => onChange({ ...contactInfo, companies: [...companies, ""] })}
-              className="text-sm font-medium text-zinc-700 underline"
+              className="text-sm font-medium text-foreground underline"
             >
               Add company
             </button>
@@ -2081,7 +2081,7 @@ function QuestionOptionsEditor({
           />
         </Field>
         <div className="space-y-3">
-          <p className="text-sm font-medium text-zinc-800">Outcomes</p>
+          <p className="text-sm font-medium text-foreground">Outcomes</p>
           {allocation.outcomes.map((item, index) => (
             <div key={index} className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
               <input
@@ -2123,7 +2123,7 @@ function QuestionOptionsEditor({
                   });
                 }}
                 disabled={allocation.outcomes.length <= 2}
-                className="rounded border border-zinc-200 px-3 py-2 text-xs text-zinc-600 disabled:opacity-40"
+                className="rounded border border-border px-3 py-2 text-xs text-muted-foreground disabled:opacity-40"
               >
                 Remove
               </button>
@@ -2143,7 +2143,7 @@ function QuestionOptionsEditor({
                 ],
               })
             }
-            className="text-sm font-medium text-zinc-700 underline-offset-2 hover:underline"
+            className="text-sm font-medium text-foreground underline-offset-2 hover:underline"
           >
             Add outcome
           </button>
@@ -2212,26 +2212,26 @@ function Field({
       {asDiv && htmlFor ? (
         <label
           htmlFor={htmlFor}
-          className="text-sm font-medium text-zinc-800"
+          className="text-sm font-medium text-foreground"
         >
           {label}
-          {required && <span className="text-red-600"> *</span>}
+          {required && <span className="text-negative"> *</span>}
         </label>
       ) : (
-        <span className="text-sm font-medium text-zinc-800">
+        <span className="text-sm font-medium text-foreground">
           {label}
-          {required && <span className="text-red-600"> *</span>}
+          {required && <span className="text-negative"> *</span>}
         </span>
       )}
       <div className="mt-1.5">{children}</div>
-      {hint && !error && <p className="mt-1 text-xs text-zinc-500">{hint}</p>}
-      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+      {hint && !error && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
+      {error && <p className="mt-1 text-xs text-negative">{error}</p>}
     </Comp>
   );
 }
 
 function inputClass(error?: string) {
-  return `w-full rounded-lg border bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-900 ${
-    error ? "border-red-300" : "border-zinc-300"
+  return `w-full rounded-lg border bg-input px-3 py-2 text-sm text-foreground outline-none transition placeholder:text-fg-faint focus:border-ring ${
+    error ? "border-negative" : "border-border"
   }`;
 }

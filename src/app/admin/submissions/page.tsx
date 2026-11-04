@@ -55,17 +55,17 @@ export default async function AdminSubmissionsPage() {
 
   return (
     <>
-      <header className="border-b border-zinc-200 bg-white">
+      <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
           <div>
-            <h1 className="text-xl font-semibold text-zinc-900">Submissions</h1>
-            <p className="text-sm text-zinc-500">
+            <h1 className="text-xl font-semibold text-foreground">Submissions</h1>
+            <p className="text-sm text-muted-foreground">
               Recent form responses (latest 50)
             </p>
           </div>
           <Link
             href="/"
-            className="text-sm text-zinc-500 transition hover:text-zinc-800"
+            className="text-sm text-muted-foreground transition hover:text-foreground"
           >
             Home
           </Link>
@@ -74,18 +74,18 @@ export default async function AdminSubmissionsPage() {
 
       <div className="mx-auto max-w-5xl space-y-4 px-4 py-8">
         {submissions.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-zinc-300 bg-white p-8 text-center text-sm text-zinc-500">
+          <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center text-sm text-muted-foreground">
             No submissions yet for surveys you can access.
           </div>
         ) : (
           submissions.map((submission) => (
             <article
               key={submission.id}
-              className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm"
+              className="rounded-xl border border-border bg-card p-5 shadow-sm"
             >
-              <div className="flex flex-wrap items-start justify-between gap-2 border-b border-zinc-100 pb-3">
+              <div className="flex flex-wrap items-start justify-between gap-2 border-b border-border pb-3">
                 <div>
-                  <h2 className="font-medium text-zinc-900">
+                  <h2 className="font-medium text-foreground">
                     <Link
                       href={`/admin/forms/${submission.form.slug}/insights`}
                       className="hover:underline"
@@ -93,11 +93,11 @@ export default async function AdminSubmissionsPage() {
                       {submission.form.title}
                     </Link>
                   </h2>
-                  <p className="text-xs text-zinc-500">
+                  <p className="text-xs text-muted-foreground">
                     {submission.form.slug} · {submission.id}
                   </p>
                 </div>
-                <div className="flex flex-col items-end gap-2 text-right text-xs text-zinc-500">
+                <div className="flex flex-col items-end gap-2 text-right text-xs text-muted-foreground">
                   <time dateTime={submission.submittedAt.toISOString()}>
                     {submission.submittedAt.toLocaleString()}
                   </time>
@@ -120,10 +120,10 @@ export default async function AdminSubmissionsPage() {
                     : null;
                   return (
                     <div key={answer.id}>
-                      <dt className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                         Q{answer.question.order}: {answer.question.prompt}
                       </dt>
-                      <dd className="mt-1 flex flex-wrap items-baseline justify-between gap-2 text-sm text-zinc-900">
+                      <dd className="mt-1 flex flex-wrap items-baseline justify-between gap-2 text-sm text-foreground">
                         <span>
                           {attachment ? (
                             <a
@@ -137,7 +137,7 @@ export default async function AdminSubmissionsPage() {
                           )}
                         </span>
                         {answer.durationMs != null && (
-                          <span className="text-xs text-zinc-500 tabular-nums">
+                          <span className="text-xs text-muted-foreground tabular-nums">
                             {formatDuration(answer.durationMs)}
                           </span>
                         )}
