@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { LaunchBoxWordmark } from "@/components/LaunchBoxWordmark";
+import { AppChrome } from "@/components/os-nav/AppChrome";
 
 export const metadata: Metadata = {
   title: "Unauthorized · The Launch Box",
@@ -9,11 +9,8 @@ export const metadata: Metadata = {
 
 export default function UnauthorizedPage() {
   return (
-    <main className="tlb-shell relative flex min-h-screen items-center justify-center bg-background px-4 text-foreground">
-      <div className="absolute left-4 top-4 sm:left-6 sm:top-6">
-        <LaunchBoxWordmark />
-      </div>
-
+    <AppChrome>
+    <main className="flex flex-1 items-center justify-center bg-background px-4 py-16 text-foreground">
       <div className="w-full max-w-lg rounded-lg border border-border bg-card p-8">
         <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
           Access
@@ -36,5 +33,6 @@ export default function UnauthorizedPage() {
         </div>
       </div>
     </main>
+    </AppChrome>
   );
 }

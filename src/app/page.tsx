@@ -1,15 +1,12 @@
 import Link from "next/link";
-import { LaunchBoxWordmark } from "@/components/LaunchBoxWordmark";
+import { AppChrome } from "@/components/os-nav/AppChrome";
 
 export const dynamic = "force-dynamic";
 
 export default function HomePage() {
   return (
-    <main className="tlb-shell relative flex min-h-screen items-center justify-center bg-background px-4 text-foreground">
-      <div className="absolute left-4 top-4 sm:left-6 sm:top-6">
-        <LaunchBoxWordmark />
-      </div>
-
+    <AppChrome>
+    <main className="flex flex-1 items-center justify-center bg-background px-4 py-16 text-foreground">
       <div className="w-full max-w-lg rounded-lg border border-border bg-card p-8">
         <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
           Internal surveys
@@ -31,5 +28,6 @@ export default function HomePage() {
         </div>
       </div>
     </main>
+    </AppChrome>
   );
 }

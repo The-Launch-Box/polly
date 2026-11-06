@@ -1,11 +1,19 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-import { JetBrains_Mono, Manrope } from "next/font/google";
+import { Inter, JetBrains_Mono, Manrope } from "next/font/google";
 import "./globals.css";
+
+const themeBoot = `(function(){try{var saved=localStorage.getItem("theme");var root=document.documentElement.classList;if(saved==="light"){root.remove("dark");root.add("light");}else{root.remove("light");root.add("dark");}}catch(e){}})();`;
 
 const manrope = Manrope({
   variable: "--font-manrope",
   subsets: ["latin"],
+});
+
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
 const jetbrainsMono = JetBrains_Mono({
@@ -34,8 +42,12 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${manrope.variable} ${jetbrainsMono.variable} ${bebasNeuePro.variable} h-full antialiased`}
+      className={`${manrope.variable} ${inter.variable} ${jetbrainsMono.variable} ${bebasNeuePro.variable} dark h-full antialiased`}
+      suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeBoot }} />
+      </head>
       <body className="flex min-h-full flex-col">{children}</body>
     </html>
   );

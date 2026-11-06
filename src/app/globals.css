@@ -64,6 +64,10 @@
   --color-ring: var(--color-tlb-orange);
   --color-accent-soft: var(--color-tlb-orange-soft);
   --color-accent-wash: var(--color-tlb-orange-dim);
+  --color-accent-ink: #e35c00;
+  --color-bg-header: #0d1117;
+  --color-bg-raised: #1c2128;
+  --color-bg-canvas: #0d1117;
   --color-fg-faint: var(--color-tlb-faint-dark);
   --color-positive: var(--color-tlb-positive);
   --color-positive-dim: var(--color-tlb-positive-dim);
@@ -118,6 +122,33 @@
 
 .tlb-shell {
   color-scheme: dark;
+}
+
+html.light,
+html.light .tlb-shell {
+  color-scheme: light;
+}
+
+html.light {
+  --color-background: #f6f8fa;
+  --color-foreground: #1f2328;
+  --color-card: #ffffff;
+  --color-card-foreground: #1f2328;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #1f2328;
+  --color-muted: #eff2f6;
+  --color-muted-foreground: #57606a;
+  --color-accent: #fff8f4;
+  --color-accent-foreground: #000000;
+  --color-border: #ccd4db;
+  --color-input: #ccd4db;
+  --color-fg-faint: #6e7781;
+  --color-bg-header: color-mix(in srgb, var(--accent) 10%, #ffffff);
+  --color-bg-raised: #eff2f6;
+  --color-bg-canvas: #f6f8fa;
+  --color-accent-wash: color-mix(in srgb, var(--accent) 14%, transparent);
+  --accent: #ff6400;
+  --accent-ink: #e35c00;
 }
 
 .tlb-shell h1,
@@ -264,4 +295,137 @@ textarea:focus-visible,
   .question-body-grid {
     transition: none;
   }
+}
+
+/*
+ * OS shell navbar. Tokens match os.thelaunchbox.com: orange #ff6400,
+ * firm accents, and the dark/light header washes.
+ */
+:root {
+  --firm-tlb-accent: #ff6400;
+  --firm-echelon-accent: #e0ff00;
+  --firm-improv-accent: #c13c86;
+  --firm-hyperscayle-accent: #01f34f;
+  --firm-vescape-labs-accent: #ff0066;
+  --firm-dx-foundation-accent: #8585cb;
+  --firm-bluetrail-accent: #00dbff;
+  --firm-kinavic-accent: #ff6400;
+  --firm-proscalar-accent: #ff6400;
+  --firm-delicious-digital-accent: #ff6400;
+}
+
+.os-nav {
+  --accent: #ff6400;
+  --accent-ink: #e35c00;
+  --accent-foreground: #000000;
+  --firm-primary: #0d1117;
+  --color-primary: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-bg-header: color-mix(in srgb, var(--firm-primary) 32%, #0d1117);
+  --color-accent-wash: color-mix(in srgb, var(--accent) 15%, #0d1117);
+  --color-ring: var(--accent);
+  font-family: var(--font-inter), Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+html.light .os-nav {
+  --color-foreground: #1f2328;
+  --color-muted-foreground: #57606a;
+  --color-border: #ccd4db;
+  --color-input: #ccd4db;
+  --color-card: #ffffff;
+  --color-card-foreground: #1f2328;
+  --color-popover: #ffffff;
+  --color-popover-foreground: #1f2328;
+  --color-bg-raised: #eff2f6;
+  --color-accent: #fff8f4;
+  --color-accent-foreground: #000000;
+  --color-bg-header: color-mix(in srgb, var(--accent) 10%, #ffffff);
+  --color-accent-wash: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.os-nav .font-brand {
+  font-family: var(--font-bebas), "Bebas Neue", "Arial Narrow", Impact, sans-serif;
+}
+
+.os-nav .os-apps[data-state="open"] {
+  border-color: var(--color-primary);
+  background: var(--color-accent-wash);
+  color: var(--color-primary);
+}
+
+.os-nav .os-admin {
+  border-color: transparent;
+  color: var(--color-muted-foreground);
+}
+
+.os-nav .os-admin:hover {
+  background: var(--color-bg-raised);
+  color: var(--color-foreground);
+}
+
+.os-nav .os-admin[data-active="true"] {
+  border-color: var(--color-primary);
+  background: var(--color-accent-wash);
+  color: var(--color-accent-ink);
+}
+
+.os-nav[data-firm="echelon"] {
+  --accent: #e0ff00;
+  --accent-ink: #e0ff00;
+  --accent-foreground: #000033;
+  --firm-primary: #000066;
+}
+html.light .os-nav[data-firm="echelon"] {
+  --accent-ink: #6f7d00;
+}
+
+.os-nav[data-firm="improv"] {
+  --accent: #c13c86;
+  --accent-ink: #c13c86;
+  --accent-foreground: #ffffff;
+  --firm-primary: #003b59;
+}
+html.light .os-nav[data-firm="improv"] {
+  --accent: #590341;
+  --accent-ink: #590341;
+}
+
+.os-nav[data-firm="hyperscayle"] {
+  --accent: #01f34f;
+  --accent-ink: #01f34f;
+  --accent-foreground: #000000;
+  --firm-primary: #0b105b;
+}
+html.light .os-nav[data-firm="hyperscayle"] {
+  --accent-ink: #08933d;
+}
+
+.os-nav[data-firm="vescape-labs"] {
+  --accent: #ff0066;
+  --accent-ink: #ff0066;
+  --accent-foreground: #000000;
+  --firm-primary: #330066;
+}
+html.light .os-nav[data-firm="vescape-labs"] {
+  --accent-ink: #d6004f;
+}
+
+.os-nav[data-firm="dx-foundation"] {
+  --accent: #8585cb;
+  --accent-ink: #8585cb;
+  --accent-foreground: #000000;
+  --firm-primary: #163259;
+}
+html.light .os-nav[data-firm="dx-foundation"] {
+  --accent-ink: #5757a8;
+}
+
+.os-nav[data-firm="bluetrail"] {
+  --accent: #00dbff;
+  --accent-ink: #00dbff;
+  --accent-foreground: #000000;
+  --firm-primary: #074e75;
+}
+html.light .os-nav[data-firm="bluetrail"] {
+  --accent-ink: #0092b2;
 }
